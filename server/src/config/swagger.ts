@@ -10,42 +10,59 @@ const spec: Record<string, any> = {
     title: "ShopSmart API",
     version: "1.0.0",
     description: `
+---
+
+### Architecture diagram
+
+ [→ Open architecture diagram](/api-docs/architecture)
+
+_Monorepo structure, request lifecycle, RBAC, and tech stack._
+
+---
+
 ## Overview
 
 This is the **ShopSmart API**: the backend for the ShopSmart eCommerce app. It is a REST API: you send HTTP requests (GET, POST, PATCH, DELETE) to the URLs below; responses are JSON.
 
+**Live deployment:**
+
+- API docs (this page): \`https://shopsmart-r8p3.onrender.com/api-docs\`
+- Backend API base: \`https://shopsmart-r8p3.onrender.com\`
+- Frontend: \`https://shopsmart-web.vercel.app\`
+
 **What each section does:**
 
 - **Health** — Check if the API is running (no login required).
-- **Auth** — Register, log in, refresh token, log out. Authentication is **cookie-based**: the server sets httpOnly cookies (access + refresh). No token is returned in the response body. Protected routes require the access token cookie (\`credentials: include\`).
-- **Users** — Get or update the current user profile. Admins can list and manage users.
-- **Categories** — List product categories. Admins can create or update categories.
-- **Products** — List and get products (and their reviews). Admins can create, update, or delete products.
-- **Cart** — Add, update, or remove items in the current user's cart (requires login).
-- **Orders** — Create an order and list the current user's orders (requires login). Admins can update order status.
-- **Reviews** — Add a product review (requires login). Admins can delete reviews.
-- **Admin** — Dashboard, stats, revenue, logs. Only admin and super_admin roles can use these.
+- **Auth** — Register, log in, refresh token, log out. The server sets httpOnly cookies (access + refresh) for browser clients. For **Swagger / API testing**, the response body includes \`accessToken\`: use it in the **Authorize** button as \`Bearer <accessToken>\`.
+- **Users** — Get or update the current user profile. **Requires auth.** Admins can list and manage users (Admin / Super Admin).
+- **Categories** — List product categories (public). Create/update categories require **Admin** or **Super Admin**.
+- **Products** — List and get products (public). Create/update/delete require **Admin** or **Super Admin**.
+- **Cart** — Requires **authenticated user**. Add, update, or remove cart items.
+- **Orders** — Create and list orders require **authenticated user**. Update order status requires **Admin** or **Super Admin**.
+- **Reviews** — Create review requires **authenticated user**. Delete/update status require **Admin** or **Super Admin**.
+- **Admin** — Dashboard, stats, revenue, logs, coupons, reports. **Admin** or **Super Admin** only.
+- **Super Admin** — System config, create/delete admins, assign roles. **Super Admin** only.
 
-Endpoints that require a logged-in user are marked with a lock. The client must send credentials (cookies) with each request. The server reads the JWT from cookies only.
+Endpoints that require authentication show a lock icon. Use **Authorize** and enter \`Bearer <your-access-token>\` (paste the token from login/register/refresh response). The server accepts either the \`Authorization: Bearer\` header or the access token cookie.
 
 ---
 
-## Authentication (cookie-based)
+## Authentication
 
-**1. Overview**  
-Login, register, and refresh set **httpOnly cookies** via Set-Cookie. No token in JSON body. Use \`credentials: "include"\` (fetch) or \`withCredentials: true\` (Axios).
+**For Swagger "Try it out":**
 
-**2. Login** — **POST /api/auth/login** with \`email\` and \`password\`. Response: \`{ "success": true, "user": { ... } }\`. Server sets \`accessToken\` and \`refreshToken\` cookies. Status: 200, 401, 423.
+1. Call **POST /api/auth/login** with \`email\` and \`password\` (e.g. \`customer@shopsmart.com\` / \`Customer1!\`).
+2. Copy \`accessToken\` from the response body.
+3. Click **Authorize** (top right), enter: \`Bearer <paste-token-here>\`, then **Authorize**.
+4. Protected endpoints will now send the token automatically.
 
-**3. Protected routes** — Server validates **access token cookie**. If missing or invalid: 401. Do not pass token in Authorization header or body.
+**For browser / cookie-based clients:**
 
-**4. Refresh** — **POST /api/auth/refresh** (no body). Server reads \`refreshToken\` cookie, sets new cookies. Response: \`{ "success": true, "user": { ... } }\`. Status: 200, 400, 401.
+- Login, register, and refresh set **httpOnly cookies** (\`accessToken\`, \`refreshToken\`). Use \`credentials: "include"\` (fetch) or \`withCredentials: true\` (Axios). No need to send the token in the header.
 
-**5. Logout** — **POST /api/auth/logout**. Server clears auth cookies. Response: \`{ "success": true, "message": "Logged out" }\`. Status: 200.
+**Protected routes** accept either \`Authorization: Bearer <token>\` or the access token cookie. Missing or invalid token returns **401**. Insufficient role returns **403**.
 
-**6. Test accounts**  
-These users exist after running the database seed.  
-These users exist after running the database seed. Use them to log in and try the API:
+**Test accounts** (after running the database seed):
 
 | Role        | Email                    | Password   |
 | ----------- | ------------------------- | ---------- |
@@ -55,6 +72,7 @@ These users exist after running the database seed. Use them to log in and try th
     `.trim(),
   },
   servers: [
+    { url: "https://shopsmart-r8p3.onrender.com", description: "Production (Render)" },
     { url: "http://localhost:4000", description: "Local development" },
     { url: "/", description: "Current host" },
   ],
@@ -73,10 +91,10 @@ These users exist after running the database seed. Use them to log in and try th
   components: {
     securitySchemes: {
       bearerAuth: {
-        type: "apiKey",
-        in: "cookie",
-        name: "accessToken",
-        description: "Cookie-based JWT. Set by server on login/refresh. Send credentials with each request.",
+        type: "http",
+        scheme: "bearer",
+        bearerFormat: "JWT",
+        description: "JWT access token. Get it from POST /api/auth/login (or register/refresh) response body, then enter here as: Bearer <token>",
       },
     },
     schemas: {
@@ -107,8 +125,12 @@ These users exist after running the database seed. Use them to log in and try th
         properties: {
           success: { type: "boolean", example: true },
           user: { $ref: "#/components/schemas/User" },
+          accessToken: {
+            type: "string",
+            description: "JWT for Authorization: Bearer header. Use in Swagger Authorize. Also set in httpOnly cookie for browser clients.",
+          },
         },
-        description: "Login, register, and refresh return this. Tokens are set in httpOnly cookies only.",
+        description: "Login, register, and refresh return this. accessToken is in the body for API/Swagger; cookies are also set for browser.",
       },
       Category: {
         type: "object",

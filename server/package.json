@@ -4,6 +4,7 @@
   "description": "ShopSmart e-commerce API",
   "main": "dist/src/server.js",
   "scripts": {
+    "postinstall": "prisma generate",
     "build": "tsc -p tsconfig.build.json",
     "dev": "ts-node-dev --respawn src/server.ts",
     "start": "node dist/src/server.js",
@@ -21,6 +22,7 @@
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
+    "@vercel/node": "^5.3.7",
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",

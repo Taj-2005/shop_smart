@@ -177,6 +177,66 @@ router.get("/reports/revenue", async (_req, res, next) => {
   }
 });
 
+/** Daily trend — orders and revenue by day (last N days). */
+router.get("/reports/trend", async (req, res, next) => {
+  try {
+    const days = Math.min(Math.max(Number(req.query.days) || 30, 1), 365);
+    const from = new Date();
+    from.setDate(from.getDate() - days);
+    from.setUTCHours(0, 0, 0, 0);
+
+    type Row = { date: string | Date; orders: number | bigint; revenue: number | string };
+    const rows = await prisma.$queryRaw<Row[]>`
+      SELECT
+        (o.created_at)::date AS date,
+        COUNT(*)::int AS orders,
+        COALESCE(SUM(CASE WHEN o.status = 'DELIVERED' THEN o.total ELSE 0 END), 0)::float AS revenue
+      FROM orders o
+      WHERE o.created_at >= ${from}
+      GROUP BY (o.created_at)::date
+      ORDER BY date
+    `;
+
+    const data = rows.map((r) => ({
+      date: r.date instanceof Date ? r.date.toISOString().slice(0, 10) : String(r.date).slice(0, 10),
+      orders: Number(r.orders),
+      revenue: Number(r.revenue),
+    }));
+    res.json({ success: true, data });
+  } catch (e) {
+    next(e);
+  }
+});
+
+/** Sales by category — delivered order items grouped by category. */
+router.get("/reports/by-category", async (_req, res, next) => {
+  try {
+    type Row = { name: string; count: string; revenue: string };
+    const rows = await prisma.$queryRaw<Row[]>`
+      SELECT
+        c.name AS name,
+        COUNT(oi.id)::text AS count,
+        COALESCE(SUM(oi.price * oi.quantity), 0)::text AS revenue
+      FROM order_items oi
+      JOIN products p ON p.id = oi.product_id
+      JOIN categories c ON c.id = p.category_id
+      JOIN orders o ON o.id = oi.order_id
+      WHERE o.status = 'DELIVERED'
+      GROUP BY c.id, c.name
+      ORDER BY count DESC
+    `;
+
+    const data = rows.map((r) => ({
+      name: r.name,
+      count: Number(r.count),
+      revenue: Number(r.revenue),
+    }));
+    res.json({ success: true, data });
+  } catch (e) {
+    next(e);
+  }
+});
+
 /** Coupons CRUD — Admin/Super Admin. */
 router.get("/coupons", async (req, res, next) => {
   try {

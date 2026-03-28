@@ -14,7 +14,7 @@ import { AuthFormLayout } from "@/components/auth/auth-form-layout";
 import { AuthFormField } from "@/components/auth/auth-form-field";
 import { useAuth } from "@/context/auth-context";
 
-const DEBOUNCE_MS = 400;
+const DEBOUNCE_MS = 600;
 
 export default function SignupPage() {
   const router = useRouter();

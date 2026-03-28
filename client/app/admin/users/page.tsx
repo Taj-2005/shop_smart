@@ -132,7 +132,7 @@ export default function AdminUsersPage() {
                       {u.active !== false ? "Active" : "Suspended"}
                     </span>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="flex flex-col px-4 py-3 items-start gap-2">
                     <Link href={`/profile`} className="text-accent hover:underline">
                       View
                     </Link>

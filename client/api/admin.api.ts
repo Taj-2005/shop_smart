@@ -27,6 +27,26 @@ export const adminApi = {
   getOrdersStats: () =>
     apiClient.get<ApiResponse<{ status: string; _count: number }[]>>("/api/admin/orders/stats").then((r) => r.data),
 
+  /** Sales by status (count + total revenue per status). */
+  getSalesReport: () =>
+    apiClient
+      .get<ApiResponse<{ status: string; count: number; total: number }[]>>("/api/admin/reports/sales")
+      .then((r) => r.data),
+
+  /** Daily trend (orders + revenue by day) for the last N days. */
+  getTrend: (days?: number) =>
+    apiClient
+      .get<ApiResponse<{ date: string; orders: number; revenue: number }[]>>("/api/admin/reports/trend", {
+        params: { days: days ?? 30 },
+      })
+      .then((r) => r.data),
+
+  /** Sales by category (delivered order items: name, count, revenue). */
+  getSalesByCategory: () =>
+    apiClient
+      .get<ApiResponse<{ name: string; count: number; revenue: number }[]>>("/api/admin/reports/by-category")
+      .then((r) => r.data),
+
   createAdmin: (data: { email: string; password: string; fullName?: string }) =>
     apiClient.post<ApiResponse<{ id: string; email: string; fullName: string; role: unknown }>>("/api/super-admin/admins", data).then((r) => r.data),
 

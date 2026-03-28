@@ -38,10 +38,10 @@ ShopSmart is a **monorepo eCommerce platform** with a clear separation of concer
 
 ### Role-Based Access Control (RBAC)
 
-| Role | Description |
-|------|-------------|
-| **Customer** | Browse products, manage cart & wishlist, place orders, write reviews, manage profile |
-| **Admin** | Manage products, categories, inventory, orders, coupons, customers, and reports |
+| Role            | Description                                                                                               |
+| --------------- | --------------------------------------------------------------------------------------------------------- |
+| **Customer**    | Browse products, manage cart & wishlist, place orders, write reviews, manage profile                      |
+| **Admin**       | Manage products, categories, inventory, orders, coupons, customers, and reports                           |
 | **Super Admin** | Full system access — manage admins, RBAC, system config, payments, shipping, feature flags, and analytics |
 
 > **Security note:** Authentication is entirely cookie-based. Access and refresh tokens are stored in `httpOnly` cookies — never in `localStorage` or the response body. All protected routes enforce role checks via dedicated middleware.
@@ -52,29 +52,29 @@ ShopSmart is a **monorepo eCommerce platform** with a clear separation of concer
 
 ### Frontend
 
-| Technology | Purpose |
-|------------|---------|
-| **Next.js 16** (App Router) | React framework with SSR/SSG |
-| **React 19** | UI component layer |
-| **TypeScript** | End-to-end type safety |
-| **Tailwind CSS v4** | Utility-first styling |
-| **Axios** | HTTP client (`withCredentials: true`) |
-| **Framer Motion** | Page and component animations |
-| **Recharts** | Charts for admin/super-admin dashboards |
+| Technology                  | Purpose                                 |
+| --------------------------- | --------------------------------------- |
+| **Next.js 16** (App Router) | React framework with SSR/SSG            |
+| **React 19**                | UI component layer                      |
+| **TypeScript**              | End-to-end type safety                  |
+| **Tailwind CSS v4**         | Utility-first styling                   |
+| **Axios**                   | HTTP client (`withCredentials: true`)   |
+| **Framer Motion**           | Page and component animations           |
+| **Recharts**                | Charts for admin/super-admin dashboards |
 
 ### Backend
 
-| Technology | Purpose |
-|------------|---------|
-| **Node.js + Express** | REST API server |
-| **TypeScript** | Type safety across all modules |
-| **Prisma + MySQL** | ORM and relational database |
-| **JWT + bcryptjs** | Stateless authentication and password hashing |
-| **cookie-parser** | Read `req.cookies` for token extraction |
-| **express-validator** | Request body validation |
-| **Swagger (OpenAPI 3)** | Auto-generated API documentation |
-| **Helmet** | HTTP security headers |
-| **CORS** | Credential-safe cross-origin configuration |
+| Technology              | Purpose                                       |
+| ----------------------- | --------------------------------------------- |
+| **Node.js + Express**   | REST API server                               |
+| **TypeScript**          | Type safety across all modules                |
+| **Prisma + MySQL**      | ORM and relational database                   |
+| **JWT + bcryptjs**      | Stateless authentication and password hashing |
+| **cookie-parser**       | Read`req.cookies` for token extraction        |
+| **express-validator**   | Request body validation                       |
+| **Swagger (OpenAPI 3)** | Auto-generated API documentation              |
+| **Helmet**              | HTTP security headers                         |
+| **CORS**                | Credential-safe cross-origin configuration    |
 
 ---
 
@@ -141,18 +141,19 @@ Request
 
 ### RBAC Route Map
 
-| Route Prefix | Access Level |
-|---|---|
-| `/api/user/*` | Any authenticated user |
-| `/api/users` | Self, Admin, or Super Admin |
-| `/api/admin/*` | Admin or Super Admin |
-| `/api/super-admin/*` | Super Admin only |
+| Route Prefix         | Access Level                |
+| -------------------- | --------------------------- |
+| `/api/user/*`        | Any authenticated user      |
+| `/api/users`         | Self, Admin, or Super Admin |
+| `/api/admin/*`       | Admin or Super Admin        |
+| `/api/super-admin/*` | Super Admin only            |
 
 ---
 
 ## 4. Features by Role
 
 ### 👤 Customer
+
 - Browse and search products and categories
 - Add to cart, update quantities, remove items
 - Wishlist management
@@ -163,6 +164,7 @@ Request
 - Email verification, forgot/reset password
 
 ### 🛠️ Admin
+
 - Full product and category CRUD
 - Inventory management
 - Order processing and status updates (shipped, delivered, cancelled, refunded)
@@ -176,6 +178,7 @@ Request
 > Admins cannot modify system-level settings, create/delete other admins, or access Super Admin–only configuration.
 
 ### Super Admin
+
 - Create and delete Admin accounts
 - Assign and manage user roles (RBAC)
 - System configuration
@@ -189,16 +192,16 @@ Request
 
 ## 5. Authentication & Security
 
-| Mechanism | Detail |
-|-----------|--------|
-| **httpOnly Cookies** | Tokens are inaccessible to JavaScript — mitigates XSS |
-| **Secure Flag** | `secure: true` in production (HTTPS-only) |
-| **SameSite Policy** | `none` + `secure` for cross-origin; `lax` for local development |
-| **No Token Exposure** | Zero storage in `localStorage`, `sessionStorage`, or `document.cookie` |
-| **CORS** | Exact `FRONTEND_URL` origin with `credentials: true` — no wildcard |
-| **RBAC Middleware** | `authenticate` → `requireAdmin` / `requireSuperAdmin` on every protected route |
-| **Login Lockout** | Configurable failed login threshold and lockout duration |
-| **Password Hashing** | bcryptjs with salted hashing |
+| Mechanism             | Detail                                                                         |
+| --------------------- | ------------------------------------------------------------------------------ |
+| **httpOnly Cookies**  | Tokens are inaccessible to JavaScript — mitigates XSS                          |
+| **Secure Flag**       | `secure: true` in production (HTTPS-only)                                      |
+| **SameSite Policy**   | `none` + `secure` for cross-origin; `lax` for local development                |
+| **No Token Exposure** | Zero storage in`localStorage`, `sessionStorage`, or `document.cookie`          |
+| **CORS**              | Exact`FRONTEND_URL` origin with `credentials: true` — no wildcard              |
+| **RBAC Middleware**   | `authenticate` → `requireAdmin` / `requireSuperAdmin` on every protected route |
+| **Login Lockout**     | Configurable failed login threshold and lockout duration                       |
+| **Password Hashing**  | bcryptjs with salted hashing                                                   |
 
 ### Cookie-Based Authentication Flow
 
@@ -226,19 +229,22 @@ Request
 
 ## 6. API Documentation
 
-Interactive Swagger (OpenAPI 3) docs are available at:
+### Live deployment
 
-```
-http://localhost:4000/api-docs
-```
+| What                   | URL                                                                                            |
+| ---------------------- | ---------------------------------------------------------------------------------------------- |
+| **Swagger (API docs)** | [https://shopsmart-r8p3.onrender.com/api-docs/](https://shopsmart-r8p3.onrender.com/api-docs/) |
+| **Backend API base**   | [https://shopsmart-r8p3.onrender.com](https://shopsmart-r8p3.onrender.com)                     |
+| **Frontend**           | [https://shopsmart-web.vercel.app/](https://shopsmart-web.vercel.app/)                         |
 
-The documentation covers:
+Interactive Swagger (OpenAPI 3) docs at the link above cover:
+
 - All endpoints with request/response schemas
 - Role-based access per route
 - Auth flows (login, register, refresh, logout) and cookie behavior
 - Error codes and validation rules
 
-> For production, replace the host with your API domain.
+> For local development, use `http://localhost:4000` (API) and `http://localhost:3000` (frontend).
 
 ---
 
@@ -268,11 +274,13 @@ npx prisma migrate dev         # Use `migrate deploy` for production
 npm run dev                    # Start development server
 ```
 
-| Endpoint | URL |
-|----------|-----|
-| API Base | `http://localhost:4000` |
-| Health Check | `http://localhost:4000/api/health` |
-| Swagger Docs | `http://localhost:4000/api-docs` |
+| Endpoint            | URL                                                                                            |
+| ------------------- | ---------------------------------------------------------------------------------------------- | --- |
+| API Base (local)    | `http://localhost:4000`                                                                        |
+| API Base (prod)     | [https://shopsmart-r8p3.onrender.com](https://shopsmart-r8p3.onrender.com)                     |     |
+| Health Check        | `http://localhost:4000/api/health` or `…/api/health` on prod                                   |
+| Swagger Docs (prod) | [https://shopsmart-r8p3.onrender.com/api-docs/](https://shopsmart-r8p3.onrender.com/api-docs/) |
+| Frontend (prod)     | [https://shopsmart-web.vercel.app/](https://shopsmart-web.vercel.app/)                         |
 
 ### Frontend Setup
 
@@ -287,14 +295,14 @@ App available at: `http://localhost:3000`
 
 ### Scripts Reference
 
-| Context | Command | Description |
-|---------|---------|-------------|
-| Server | `npm run dev` | TypeScript dev server (ts-node-dev) |
-| Server | `npm run build` | Compile to `dist/` |
-| Server | `npm run start` | Run compiled production build |
-| Client | `npm run dev` | Next.js development server |
-| Client | `npm run build` | Production build |
-| Client | `npm run start` | Serve production build |
+| Context | Command         | Description                         |
+| ------- | --------------- | ----------------------------------- |
+| Server  | `npm run dev`   | TypeScript dev server (ts-node-dev) |
+| Server  | `npm run build` | Compile to`dist/`                   |
+| Server  | `npm run start` | Run compiled production build       |
+| Client  | `npm run dev`   | Next.js development server          |
+| Client  | `npm run build` | Production build                    |
+| Client  | `npm run start` | Serve production build              |
 
 ---
 
@@ -302,34 +310,34 @@ App available at: `http://localhost:3000`
 
 ### Frontend — `client/.env.local`
 
-| Variable | Description | Example |
-|----------|-------------|---------|
+| Variable              | Description          | Example                 |
+| --------------------- | -------------------- | ----------------------- |
 | `NEXT_PUBLIC_API_URL` | Backend API base URL | `http://localhost:4000` |
 
 ### Backend — `server/.env`
 
-| Variable | Description | Default / Notes |
-|----------|-------------|-----------------|
-| `PORT` | HTTP server port | `4000` |
-| `NODE_ENV` | Runtime environment | `development` / `production` |
-| `DATABASE_URL` | MySQL connection string | **Required** |
-| `JWT_ACCESS_SECRET` | Access token signing secret | **Required in production** |
-| `JWT_REFRESH_SECRET` | Refresh token signing secret | **Required in production** |
-| `JWT_ACCESS_EXPIRES` | Access token TTL | `1h` |
-| `JWT_REFRESH_EXPIRES_DAYS` | Refresh cookie max age (days) | `30` |
-| `FRONTEND_URL` | CORS origin (exact frontend URL) | `http://localhost:3000` |
-| `COOKIE_ACCESS_NAME` | Access token cookie name | `accessToken` |
-| `COOKIE_REFRESH_NAME` | Refresh token cookie name | `refreshToken` |
-| `COOKIE_DOMAIN` | Optional cookie domain for subdomains | e.g. `.example.com` |
-| `COOKIE_SECURE` | Disable secure flag in dev | Auto `true` when `NODE_ENV=production` |
-| `COOKIE_SAME_SITE` | Override SameSite policy | `none` when secure, else `lax` |
-| `MAX_FAILED_LOGINS` | Lockout threshold (attempts) | `5` |
-| `LOCKOUT_MINUTES` | Account lockout duration | `15` |
-| `SMTP_HOST` | Email server host | Optional |
-| `SMTP_PORT` | Email server port | Optional |
-| `SMTP_USER` | SMTP username | Optional |
-| `SMTP_PASS` | SMTP password | Optional |
-| `SMTP_FROM` | Sender email address | Optional |
+| Variable                   | Description                           | Default / Notes                       |
+| -------------------------- | ------------------------------------- | ------------------------------------- |
+| `PORT`                     | HTTP server port                      | `4000`                                |
+| `NODE_ENV`                 | Runtime environment                   | `development` / `production`          |
+| `DATABASE_URL`             | MySQL connection string               | **Required**                          |
+| `JWT_ACCESS_SECRET`        | Access token signing secret           | **Required in production**            |
+| `JWT_REFRESH_SECRET`       | Refresh token signing secret          | **Required in production**            |
+| `JWT_ACCESS_EXPIRES`       | Access token TTL                      | `1h`                                  |
+| `JWT_REFRESH_EXPIRES_DAYS` | Refresh cookie max age (days)         | `30`                                  |
+| `FRONTEND_URL`             | CORS origin (exact frontend URL)      | `http://localhost:3000`               |
+| `COOKIE_ACCESS_NAME`       | Access token cookie name              | `accessToken`                         |
+| `COOKIE_REFRESH_NAME`      | Refresh token cookie name             | `refreshToken`                        |
+| `COOKIE_DOMAIN`            | Optional cookie domain for subdomains | e.g.`.example.com`                    |
+| `COOKIE_SECURE`            | Disable secure flag in dev            | Auto`true` when `NODE_ENV=production` |
+| `COOKIE_SAME_SITE`         | Override SameSite policy              | `none` when secure, else `lax`        |
+| `MAX_FAILED_LOGINS`        | Lockout threshold (attempts)          | `5`                                   |
+| `LOCKOUT_MINUTES`          | Account lockout duration              | `15`                                  |
+| `SMTP_HOST`                | Email server host                     | Optional                              |
+| `SMTP_PORT`                | Email server port                     | Optional                              |
+| `SMTP_USER`                | SMTP username                         | Optional                              |
+| `SMTP_PASS`                | SMTP password                         | Optional                              |
+| `SMTP_FROM`                | Sender email address                  | Optional                              |
 
 ---
 

@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ShopSmart — Architecture & CI/CD</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@9/dist/mermaid.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.6;
+      color: #1a1a1a;
+      background: #f8f9fa;
+      padding: 1rem 1.5rem 3rem;
+    }
+    .container { max-width: 1000px; margin: 0 auto; }
+    .nav {
+      padding: 1rem 0;
+      margin-bottom: 1.5rem;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .nav a {
+      color: #0ea5e9;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .nav a:hover { text-decoration: underline; }
+    .hero { margin-bottom: 1.5rem; }
+    .hero h1 { font-size: 1.75rem; margin: 0 0 0.25rem; color: #0f172a; }
+    .hero .subtitle { color: #64748b; font-size: 1rem; margin: 0; }
+    .section {
+      background: #fff;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .section h2 {
+      font-size: 1.1rem;
+      margin: 0 0 0.75rem;
+      color: #0f172a;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .section h3 { font-size: 1rem; margin: 1rem 0 0.5rem; color: #334155; }
+    .section p { margin: 0 0 0.75rem; color: #475569; font-size: 0.95rem; }
+    .section p:last-child { margin-bottom: 0; }
+    .mermaid-wrap {
+      background: #f1f5f9;
+      border-radius: 6px;
+      padding: 1rem;
+      margin: 1rem 0;
+      overflow-x: auto;
+      border: 1px solid #e2e8f0;
+    }
+    .mermaid-src { display: none; }
+    .mermaid-out { display: flex; justify-content: center; }
+    .mermaid-out svg { max-width: 100%; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin: 0.75rem 0; }
+    th, td { border: 1px solid #e2e8f0; padding: 0.5rem 0.75rem; text-align: left; }
+    th { background: #f8fafc; font-weight: 600; color: #334155; }
+    code {
+      background: #f1f5f9;
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      font-size: 0.85em;
+      border: 1px solid #e2e8f0;
+    }
+    ul { margin: 0.5rem 0; padding-left: 1.25rem; color: #475569; font-size: 0.95rem; }
+    ul li { margin-bottom: 0.35rem; }
+    .badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      text-transform: uppercase;
+      margin-left: 0.5rem;
+    }
+    .badge-build { background: #d1fae5; color: #047857; }
+    .badge-deploy { background: #ccfbf1; color: #0f766e; }
+    .badge-test { background: #e2e8f0; color: #475569; }
+    .workflow-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 0.75rem 1rem;
+      margin-bottom: 0.5rem;
+      font-size: 0.9rem;
+    }
+    .workflow-card strong { color: #0f172a; }
+    .workflow-card .file { color: #64748b; font-family: ui-monospace, monospace; font-size: 0.85em; }
+    .workflow-card .desc { color: #475569; margin-top: 0.35rem; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <nav class="nav">
+      <a href="/api-docs/">← API docs (Swagger)</a>
+    </nav>
+    <header class="hero">
+      <h1>ShopSmart — Architecture & CI/CD</h1>
+      <p class="subtitle">System design, deployment topology, and GitHub Actions workflows</p>
+    </header>
+
+    <section class="section">
+      <h2>System overview</h2>
+      <p>ShopSmart is a monorepo eCommerce platform with a Next.js 16 frontend and an Express.js REST API. Authentication is cookie-based (httpOnly); protected routes enforce RBAC via middleware.</p>
+      <div class="mermaid-wrap">
+        <div class="mermaid-src">flowchart LR
+  subgraph Client[Frontend]
+    A[Next.js 16]
+    B[React 19 Tailwind]
+  end
+  subgraph API[Backend API]
+    C[Express]
+    D[Prisma ORM]
+  end
+  subgraph Data[Data]
+    E[(PostgreSQL)]
+  end
+  A --> B
+  C --> D
+  Client -->|HTTPS withCredentials| API
+  D --> E</div>
+        <div class="mermaid-out"></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Deployment architecture</h2>
+      <p>Production traffic flows from the browser to the Next.js app on Vercel, then to the Express API on Render; the API uses a PostgreSQL database.</p>
+      <div class="mermaid-wrap">
+        <div class="mermaid-src">flowchart TB
+  subgraph Users[Users]
+    U[Browser]
+  end
+  subgraph Frontend[Frontend Vercel]
+    V[ShopSmart Web]
+  end
+  subgraph Backend[Backend Render]
+    R[Express API]
+  end
+  subgraph DB[Database]
+    M[(PostgreSQL)]
+  end
+  U -->|HTTPS| V
+  V -->|api and cookies| R
+  R --> M</div>
+        <div class="mermaid-out"></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Monorepo structure</h2>
+      <p>Single repository containing client, server, and e2e packages with clear boundaries.</p>
+      <div class="mermaid-wrap">
+        <div class="mermaid-src">flowchart TB
+  subgraph Client[client]
+    C1[app admin shop cart]
+    C2[api components context]
+    C3[lib middleware]
+  end
+  subgraph Server[server]
+    S1[prisma schema migrations]
+    S2[src app server config]
+    S3[modules auth products orders]
+    S4[middleware routes utils]
+  end
+  subgraph E2E[e2e]
+    E1[Playwright specs]
+  end</div>
+        <div class="mermaid-out"></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Request lifecycle (server)</h2>
+      <p>Each API request passes through middleware before reaching the controller.</p>
+      <div class="mermaid-wrap">
+        <div class="mermaid-src">sequenceDiagram
+  participant Req as Request
+  participant CP as cookieParser
+  participant CORS as cors
+  participant Auth as authenticate
+  participant Role as requireAdmin or requireSuperAdmin
+  participant Ctrl as Controller
+  Req->>CP: Populate req.cookies
+  CP->>CORS: Validate origin credentials
+  CORS->>Auth: Read accessToken
+  Auth->>Role: Enforce role if admin routes
+  Role->>Ctrl: Business logic
+  Ctrl-->>Req: JSON response</div>
+        <div class="mermaid-out"></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Role-based access (RBAC)</h2>
+      <div class="mermaid-wrap">
+        <div class="mermaid-src">flowchart LR
+  subgraph Roles[Roles]
+    C[Customer]
+    A[Admin]
+    SA[Super Admin]
+  end
+  subgraph Public[Public routes]
+    P[health auth products categories]
+  end
+  subgraph User[Authenticated routes]
+    U[user cart orders]
+  end
+  subgraph AdminOnly[Admin routes]
+    AD[admin users]
+  end
+  subgraph SuperOnly[Super Admin routes]
+    SO[super-admin]
+  end
+  C --> Public
+  C --> User
+  A --> Public
+  A --> User
+  A --> AdminOnly
+  SA --> Public
+  SA --> User
+  SA --> AdminOnly
+  SA --> SuperOnly</div>
+        <div class="mermaid-out"></div>
+      </div>
+      <h3>Route access matrix</h3>
+      <table>
+        <thead>
+          <tr><th>Route prefix</th><th>Access</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>/api/health</code>, <code>/api/auth/*</code>, <code>/api/products</code>, <code>/api/categories</code></td><td>Public</td></tr>
+          <tr><td><code>/api/user/*</code>, <code>/api/cart/*</code>, <code>/api/orders</code></td><td>Any authenticated user</td></tr>
+          <tr><td><code>/api/users</code></td><td>Self, Admin, or Super Admin</td></tr>
+          <tr><td><code>/api/admin/*</code></td><td>Admin or Super Admin</td></tr>
+          <tr><td><code>/api/super-admin/*</code></td><td>Super Admin only</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section">
+      <h2>Client-side auth flow</h2>
+      <div class="mermaid-wrap">
+        <div class="mermaid-src">sequenceDiagram
+  participant App as Next.js App
+  participant API as Express API
+  participant User as User
+  User->>App: Request withCredentials
+  App->>API: GET or POST with cookies
+  alt 200 OK
+    API-->>App: Response and Set-Cookie
+    App-->>User: Render
+  else 401 Unauthorized
+    API-->>App: 401
+    App->>API: POST auth refresh with cookie
+    alt Refresh OK
+      API-->>App: New tokens
+      App->>API: Retry request
+    else Refresh fail
+      App-->>User: Redirect to login
+    end
+  end</div>
+        <div class="mermaid-out"></div>
+      </div>
+      <ul>
+        <li>All API calls use <code>withCredentials: true</code> (Axios) or <code>credentials: "include"</code> (fetch).</li>
+        <li>On <strong>401</strong>, the interceptor calls <code>POST /api/auth/refresh</code> and retries once; if refresh fails, redirect to <code>/login</code>.</li>
+        <li>Route protection uses <code>ProtectedRoute</code> and auth context in layouts.</li>
+      </ul>
+    </section>
+
+    <section class="section">
+      <h2>CI/CD workflows (ShopSmart)</h2>
+      <p>GitHub Actions workflows that build, test, and deploy ShopSmart. Triggered on push or PR to <code>main</code> or <code>develop</code> when <code>shopsmart/**</code> or the workflow file changes.</p>
+      <div class="mermaid-wrap">
+        <div class="mermaid-src">flowchart TB
+  subgraph Triggers[Triggers]
+    P[Push or PR]
+    P2[paths shopsmart or workflow]
+  end
+  subgraph Build[Build and Test]
+    B1[build.yml]
+    B2[unit-tests.yml]
+    B3[integration.yml]
+    B4[integration-tests.yml]
+    B5[e2e-tests.yml]
+  end
+  subgraph Deploy[Deploy]
+    D1[deploy_shopsmart_server_to_EC2.yml]
+  end
+  P --> P2
+  P2 --> B1
+  P2 --> B2
+  P2 --> B3
+  P2 --> B4
+  P2 --> B5
+  P2 --> D1</div>
+        <div class="mermaid-out"></div>
+      </div>
+      <h3>Build and test workflows</h3>
+      <div class="workflow-card">
+        <strong>Server Build</strong> <span class="badge badge-build">Build</span><br />
+        <span class="file">build.yml</span>
+        <p class="desc">Trigger: Push to <code>main</code> or manual. Runs <code>npm install</code> and <code>npm run build</code> in <code>shopsmart/server</code>. Validates backend compiles.</p>
+      </div>
+      <div class="workflow-card">
+        <strong>Unit tests</strong> <span class="badge badge-test">Test</span><br />
+        <span class="file">unit-tests.yml</span>
+        <p class="desc">Trigger: Push/PR to <code>main</code> or <code>develop</code> when <code>shopsmart/**</code> changes. Runs server unit tests (Jest, exclude integration) and client unit tests in parallel. Uses <code>DATABASE_URL</code>, JWT, and repo variables.</p>
+      </div>
+      <div class="workflow-card">
+        <strong>Integration</strong> <span class="badge badge-test">Test</span><br />
+        <span class="file">integration.yml</span>
+        <p class="desc">Trigger: Push/PR to <code>main</code> or manual. Single job: lint, test, build in <code>shopsmart/server</code>. Matrix: Node 18, 20, 22.</p>
+      </div>
+      <div class="workflow-card">
+        <strong>Integration tests</strong> <span class="badge badge-test">Test</span><br />
+        <span class="file">integration-tests.yml</span>
+        <p class="desc">Trigger: Push/PR to <code>main</code> or <code>develop</code> when <code>shopsmart/**</code> changes. Runs server integration tests only with real DB (Prisma generate and db push).</p>
+      </div>
+      <div class="workflow-card">
+        <strong>E2E tests</strong> <span class="badge badge-test">Test</span><br />
+        <span class="file">e2e-tests.yml</span>
+        <p class="desc">Trigger: Push/PR to <code>main</code> or <code>develop</code> when <code>shopsmart/**</code> changes. Builds server and client, starts both locally, runs Playwright E2E from <code>shopsmart/e2e</code> against the running app.</p>
+      </div>
+      <h3>Deploy workflow (ShopSmart)</h3>
+      <div class="workflow-card">
+        <strong>Deploy ShopSmart Server to EC2</strong> <span class="badge badge-deploy">Deploy</span><br />
+        <span class="file">deploy_shopsmart_server_to_EC2.yml</span>
+        <p class="desc"><strong>On PR:</strong> Build-only check. <strong>On push to main</strong> (when <code>shopsmart/server/**</code> or workflow changes): SSH to EC2, clone/update repo, copy <code>.env</code> from secret <code>SHOPSMART_SERVER_ENV</code>, run <code>npm ci</code>, Prisma migrate, build, start or restart API with pm2 under <code>SHOPSMART_DEPLOY_PATH</code> (e.g. <code>/opt/shopsmart</code>).</p>
+      </div>
+      <p style="margin-top: 1rem; font-size: 0.9rem; color: #64748b;">Frontend is deployed separately (e.g. Vercel). Other repo workflows: <code>deploy_to_GitHub_pages.yml</code>, <code>deploy_to_EC2.yml</code>.</p>
+    </section>
+
+    <section class="section">
+      <h2>Tech stack</h2>
+      <table>
+        <thead>
+          <tr><th>Layer</th><th>Technologies</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Frontend</td><td>Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4, Axios, Framer Motion, Recharts</td></tr>
+          <tr><td>Backend</td><td>Node.js, Express, TypeScript, Prisma, PostgreSQL, JWT, bcryptjs, cookie-parser, express-validator, Swagger (OpenAPI 3), Helmet, CORS</td></tr>
+          <tr><td>E2E</td><td>Playwright</td></tr>
+          <tr><td>CI/CD</td><td>GitHub Actions (build, unit, integration, E2E, deploy to EC2)</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <nav class="nav" style="margin-top: 1.5rem; padding-top: 1rem;">
+      <a href="/api-docs/">← Back to API docs (Swagger)</a>
+    </nav>
+  </div>
+
+  <script>
+    window.addEventListener("load", function() {
+      if (typeof mermaid === "undefined") {
+        document.querySelectorAll(".mermaid-out").forEach(function(el) {
+          el.innerHTML = "<p style='color:#b91c1c'>Mermaid failed to load. Check the browser console.</p>";
+        });
+        return;
+      }
+      mermaid.initialize({
+        startOnLoad: false,
+        theme: "default",
+        flowchart: { useMaxWidth: true },
+        sequence: { useMaxWidth: true }
+      });
+      var sources = document.querySelectorAll(".mermaid-src");
+      var outputs = document.querySelectorAll(".mermaid-out");
+      var codes = [];
+      for (var s = 0; s < sources.length; s++) codes.push(sources[s].textContent.trim());
+      function renderNext(i) {
+        if (i >= codes.length || i >= outputs.length) return;
+        var code = codes[i];
+        var outEl = outputs[i];
+        var id = "mermaid-" + Date.now() + "-" + i;
+        if (!code) { renderNext(i + 1); return; }
+        function done(svg, bindFunctions) {
+          if (typeof svg === "string") outEl.innerHTML = svg;
+          if (typeof bindFunctions === "function") bindFunctions(outEl);
+          renderNext(i + 1);
+        }
+        function fail(err) {
+          outEl.innerHTML = "<p style='color:#b91c1c'>Diagram error: " + (err && err.message || "parse failed") + "</p>";
+          renderNext(i + 1);
+        }
+        try {
+          var p = mermaid.render(id, code);
+          if (p && typeof p.then === "function") {
+            p.then(function(r) {
+              var svg = r && (r.svg || r);
+              var bf = r && r.bindFunctions;
+              done(svg, bf);
+            }).catch(fail);
+          } else {
+            mermaid.render(id, code, done);
+          }
+        } catch (e) {
+          fail(e);
+        }
+      }
+      renderNext(0);
+    });
+  </script>
+</body>
+</html>

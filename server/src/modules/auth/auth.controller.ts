@@ -54,6 +54,7 @@ export async function register(
     res.status(201).json({
       success: true,
       user: result.user,
+      accessToken: result.accessToken,
     });
   } catch (e) {
     next(e);
@@ -72,6 +73,7 @@ export async function login(
     res.json({
       success: true,
       user: result.user,
+      accessToken: result.accessToken,
     });
   } catch (e) {
     next(e);
@@ -95,6 +97,7 @@ export async function refresh(
     res.json({
       success: true,
       user: result.user,
+      accessToken: result.accessToken,
     });
   } catch (e) {
     next(e);
