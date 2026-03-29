@@ -9,7 +9,7 @@ import { Container } from "@/components/layout/container";
 import { ProductCard } from "@/components/shop/product-card";
 
 export default function WishlistPage() {
-  const { wishlist, toggleWishlist, moveToCart } = useShop();
+  const { wishlist } = useShop();
   const productIds = Array.from(wishlist);
   const products = productIds
     .map((id) => getProductById(id))

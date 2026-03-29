@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useDebounce } from "@/hooks/use-debounce";
 import { validatePassword, validateConfirmPassword } from "@/lib/validation";
 import { AuthFormLayout } from "@/components/auth/auth-form-layout";
@@ -12,7 +12,6 @@ import { useAuth } from "@/context/auth-context";
 const DEBOUNCE_MS = 400;
 
 function ResetPasswordContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token") ?? "";
   const { resetPassword, isLoading, error, clearError } = useAuth();

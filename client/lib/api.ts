@@ -12,7 +12,8 @@ export async function apiRequest<T>(
   path: string,
   options: RequestInit & { skipAuth?: boolean } = {}
 ): Promise<T> {
-  const { skipAuth: _skipAuth, ...init } = options;
+  const { skipAuth, ...init } = options;
+  void skipAuth;
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...((init.headers as Record<string, string>) ?? {}),

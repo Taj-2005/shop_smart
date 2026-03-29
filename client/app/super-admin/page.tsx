@@ -19,6 +19,13 @@ import {
   RecentOrdersTable,
 } from "@/components/admin/dashboard";
 
+const CATEGORY_SLUG_TO_NAME: Record<string, string> = {
+  electronics: "Electronics",
+  fashion: "Fashion",
+  home: "Home",
+  sports: "Sports",
+};
+
 function growthPercent(current: number, previous: number): number | undefined {
   if (previous === 0) return current > 0 ? 100 : undefined;
   return Math.round(((current - previous) / previous) * 1000) / 10;
@@ -73,16 +80,9 @@ export default function SuperAdminDashboardPage() {
     }));
   }, [salesData, filters.status]);
 
-  const categorySlugToName: Record<string, string> = {
-    electronics: "Electronics",
-    fashion: "Fashion",
-    home: "Home",
-    sports: "Sports",
-  };
-
   const categoryDistributionChartData = useMemo<CategoryDistributionItem[]>(() => {
     const filtered = filters.category
-      ? categoryData.filter((c) => c.name === categorySlugToName[filters.category] || c.name.toLowerCase().replace(/\s+/g, "-") === filters.category)
+      ? categoryData.filter((c) => c.name === CATEGORY_SLUG_TO_NAME[filters.category] || c.name.toLowerCase().replace(/\s+/g, "-") === filters.category)
       : categoryData;
     const total = filtered.reduce((sum, c) => sum + c.revenue, 0);
     if (total === 0) return filtered.map((c) => ({ name: c.name, value: 0, count: c.count }));

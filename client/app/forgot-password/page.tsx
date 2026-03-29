@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import Link from "next/link";
 import { useDebounce } from "@/hooks/use-debounce";
 import { validateEmail } from "@/lib/validation";
 import { AuthFormLayout } from "@/components/auth/auth-form-layout";

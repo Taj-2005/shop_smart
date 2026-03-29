@@ -1,6 +1,7 @@
 "use client";
 
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import { authApi } from "@/api/auth.api";
 import { AuthProvider, useAuth } from "@/context/auth-context";
 
 jest.mock("@/api/auth.api", () => ({
@@ -45,7 +46,6 @@ function TestConsumer() {
 describe("AuthContext", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    const { authApi } = require("@/api/auth.api");
     authApi.refresh.mockRejectedValue(new Error("no cookie"));
   });
 
@@ -72,7 +72,6 @@ describe("AuthContext", () => {
   });
 
   it("updates state when login succeeds", async () => {
-    const { authApi } = require("@/api/auth.api");
     authApi.login.mockResolvedValue({
       success: true,
       user: { id: "1", email: "a@b.com", fullName: "User", role: "CUSTOMER", createdAt: "2024-01-01T00:00:00Z" },
@@ -94,7 +93,6 @@ describe("AuthContext", () => {
 
   // TODO: fix async mock timing so login state updates before asserting
   it.skip("clears user when logout is called", async () => {
-    const { authApi } = require("@/api/auth.api");
     const loginResponse = {
       success: true,
       user: { id: "1", email: "a@b.com", fullName: "U", role: "CUSTOMER", createdAt: "2024-01-01T00:00:00Z" },
@@ -118,7 +116,6 @@ describe("AuthContext", () => {
   });
 
   it.skip("sets error when login fails (unhandled rejection from context rethrow)", async () => {
-    const { authApi } = require("@/api/auth.api");
     authApi.login.mockRejectedValue(new Error("Invalid credentials"));
 
     render(

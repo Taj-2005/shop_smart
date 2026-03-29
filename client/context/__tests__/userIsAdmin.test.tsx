@@ -1,6 +1,7 @@
 "use client";
 
 import { render, screen } from "@testing-library/react";
+import { authApi } from "@/api/auth.api";
 import { AuthProvider, useIsAdmin, useIsSuperAdmin } from "@/context/auth-context";
 
 jest.mock("@/api/auth.api", () => ({
@@ -46,7 +47,6 @@ describe("useIsAdmin / useIsSuperAdmin", () => {
   });
 
   it("returns true for isAdmin when user role is admin", async () => {
-    const { authApi } = require("@/api/auth.api");
     authApi.refresh.mockResolvedValue({
       success: true,
       user: { id: "1", email: "a@b.com", fullName: "Admin", role: "ADMIN", createdAt: "2024-01-01T00:00:00Z" },
@@ -63,7 +63,6 @@ describe("useIsAdmin / useIsSuperAdmin", () => {
   });
 
   it("returns true for isSuperAdmin when user role is super_admin", async () => {
-    const { authApi } = require("@/api/auth.api");
     authApi.refresh.mockResolvedValue({
       success: true,
       user: { id: "1", email: "a@b.com", fullName: "Super", role: "SUPER_ADMIN", createdAt: "2024-01-01T00:00:00Z" },

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { cartApi, type ApiCart, type ApiCartItem } from "@/api/cart.api";
+import { cartApi, type ApiCart } from "@/api/cart.api";
 
 export function useApiCart() {
   const [cart, setCart] = useState<ApiCart | null>(null);
@@ -22,7 +22,9 @@ export function useApiCart() {
   }, []);
 
   useEffect(() => {
-    refetch();
+    queueMicrotask(() => {
+      refetch();
+    });
   }, [refetch]);
 
   const addToCart = useCallback(

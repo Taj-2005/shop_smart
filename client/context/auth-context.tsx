@@ -97,7 +97,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(
-    async (email: string, password: string, _remember?: boolean) => {
+    async (email: string, password: string, remember?: boolean) => {
+      void remember;
       setError(null);
       setIsLoading(true);
       try {

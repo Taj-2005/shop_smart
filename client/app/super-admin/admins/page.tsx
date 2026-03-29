@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
 import { userApi, type ApiUser } from "@/api/user.api";
 import { superAdminApi } from "@/api/super-admin.api";
 import { toApiError } from "@/api/axios";
