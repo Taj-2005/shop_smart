@@ -67,3 +67,5 @@ server/.env.*
 # Deployment
 # =========================
 .vercel
+
+PROJECT_AUDIT_AND_ROADMAP.md
