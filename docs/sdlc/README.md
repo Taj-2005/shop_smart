@@ -2,6 +2,8 @@
 
 This folder holds **process, planning, and quality** documentation for the project.
 
+**Primary SDLC document:** [sdlc.md](./sdlc.md) — phases, RACI, Definition of Done, development workflow.
+
 ## Purpose
 
 - Describe **how** the team builds and ships ShopSmart (phases, roles, checkpoints).
