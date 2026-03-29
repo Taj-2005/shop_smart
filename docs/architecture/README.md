@@ -13,8 +13,14 @@ This folder holds **system and software architecture** documentation for ShopSma
 | Artifact | Description |
 |----------|-------------|
 | Diagrams | Source files (e.g. Draw.io, PlantUML) plus exported **PNG** or **SVG** for submissions and README links |
-| ADRs | `adr/0001-title.md` style — one decision per file |
+| ADRs | `adr-NNN-topic.md` in this folder (or `adr/` subfolder) — one decision per file |
 | Overview | A single `OVERVIEW.md` summarizing layers: client → API → persistence |
+
+## Architecture Decision Records (index)
+
+| ID | Title | File |
+|----|--------|------|
+| ADR-001 | Monorepo architecture | [adr-001-monorepo.md](./adr-001-monorepo.md) |
 
 ## Conventions
 
