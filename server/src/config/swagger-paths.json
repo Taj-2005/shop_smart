@@ -21,7 +21,7 @@
     "post": {
       "tags": ["Auth"],
       "summary": "Register a new user",
-      "description": "Creates a new customer account. Sets accessToken and refreshToken cookies (httpOnly). Response body: success, user only (no token).",
+      "description": "Creates a new customer account. Sets accessToken and refreshToken cookies. Response includes accessToken in body for Swagger/API—use it in Authorize as Bearer <token>.",
       "requestBody": {
         "required": true,
         "content": {
@@ -32,7 +32,7 @@
         }
       },
       "responses": {
-        "201": { "description": "User created", "content": { "application/json": { "schema": { "type": "object", "properties": { "success": { "type": "boolean" }, "user": { "$ref": "#/components/schemas/User" } } } } } },
+        "201": { "description": "User created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AuthResponse" } } } },
         "400": { "description": "Validation error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
         "409": { "description": "Email already exists", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
       }
@@ -42,7 +42,7 @@
     "post": {
       "tags": ["Auth"],
       "summary": "Login",
-      "description": "Authenticates with email and password. Sets accessToken and refreshToken cookies (httpOnly). Response body: success, user only (no token).",
+      "description": "Authenticates with email and password. Sets cookies and returns accessToken in body. For Swagger: copy accessToken from response, click Authorize, enter Bearer <token>.",
       "requestBody": {
         "required": true,
         "content": {
@@ -53,7 +53,7 @@
         }
       },
       "responses": {
-        "200": { "description": "Login successful", "content": { "application/json": { "schema": { "type": "object", "properties": { "success": { "type": "boolean" }, "user": { "$ref": "#/components/schemas/User" } } } } } },
+        "200": { "description": "Login successful. Copy accessToken and use in Authorize as Bearer <token>.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AuthResponse" } } } },
         "401": { "description": "Invalid credentials", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
         "423": { "description": "Account locked", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
       }
@@ -63,9 +63,9 @@
     "post": {
       "tags": ["Auth"],
       "summary": "Refresh access token",
-      "description": "Reads refreshToken cookie, issues new access and refresh tokens, sets new cookies. Response body: success, user only (no token). Send credentials.",
+      "description": "Reads refreshToken cookie (or send in body), issues new tokens. Response includes accessToken for Swagger/API.",
       "responses": {
-        "200": { "description": "New tokens set in cookies", "content": { "application/json": { "schema": { "type": "object", "properties": { "success": { "type": "boolean" }, "user": { "$ref": "#/components/schemas/User" } } } } } },
+        "200": { "description": "New tokens set in cookies; accessToken in body for Bearer auth.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AuthResponse" } } } },
         "400": { "description": "Refresh token required", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
         "401": { "description": "Invalid or expired refresh token", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
       }
@@ -83,7 +83,7 @@
     "get": {
       "tags": ["Auth"],
       "summary": "Get current user",
-      "description": "Returns the authenticated user. Requires access token cookie (credentials: include).",
+      "description": "Returns the authenticated user. Requires Bearer token (or cookie). Use Authorize with Bearer <accessToken>.",
       "security": [{"bearerAuth": []}],
       "responses": {
         "200": { "description": "Current user", "content": { "application/json": { "schema": { "type": "object", "properties": { "success": {}, "user": { "$ref": "#/components/schemas/User" } } } } } },

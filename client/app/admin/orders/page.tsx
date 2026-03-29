@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { adminApi, type AdminOrder } from "@/api/admin.api";
 import { orderApi } from "@/api/order.api";
 import { toApiError } from "@/api/axios";
@@ -38,7 +38,7 @@ export default function AdminOrdersPage() {
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
 
-  const loadOrders = () => {
+  const loadOrders = useCallback(() => {
     setLoading(true);
     setError(null);
     adminApi
@@ -48,11 +48,11 @@ export default function AdminOrdersPage() {
       })
       .catch(() => setError("Failed to load orders"))
       .finally(() => setLoading(false));
-  };
+  }, [statusFilter]);
 
   useEffect(() => {
     loadOrders();
-  }, [statusFilter]);
+  }, [loadOrders]);
 
   const filtered = orders;
 

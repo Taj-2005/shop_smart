@@ -4,9 +4,15 @@ import { env } from "./config/env";
 import { prisma } from "./config/prisma";
 import { logger } from "./config/logger";
 
-const server = app.listen(env.PORT, () => {
-  logger.info(`Server listening on port ${env.PORT}`);
+const HOST = process.env.HOST ?? "0.0.0.0";
+
+const server = app.listen(env.PORT, HOST, () => {
+  logger.info(`Server listening on http://${HOST}:${env.PORT}`);
 });
+
+// Helps avoid intermittent proxy timeouts / connection resets on some hosts.
+server.keepAliveTimeout = 120_000;
+server.headersTimeout = 120_000;
 
 process.on("SIGTERM", () => {
   server.close(() => {

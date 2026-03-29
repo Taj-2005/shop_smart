@@ -176,33 +176,138 @@ router.patch("/config/feature-flags", async (req, res, next) => {
   }
 });
 
-router.get("/analytics", async (_req, res, next) => {
+/** Top products by units sold (delivered orders), for super admin analytics. */
+router.get("/analytics/top-products", async (req, res, next) => {
   try {
-    const [userCount, productCount, orderCount, totalRevenue, byStatus, recentOrders] = await Promise.all([
+    const limit = Math.min(Math.max(Number(req.query.limit) || 10, 1), 50);
+    type Row = { productId: string; productName: string; unitsSold: string; revenue: string };
+    const rows = await prisma.$queryRaw<Row[]>`
+      SELECT
+        p.id AS "productId",
+        p.name AS "productName",
+        SUM(oi.quantity)::text AS "unitsSold",
+        (SUM(oi.price * oi.quantity))::text AS revenue
+      FROM order_items oi
+      JOIN products p ON p.id = oi.product_id
+      JOIN orders o ON o.id = oi.order_id
+      WHERE o.status = 'DELIVERED'
+      GROUP BY p.id, p.name
+      ORDER BY SUM(oi.quantity) DESC
+      LIMIT ${limit}
+    `;
+    const data = rows.map((r) => ({
+      productId: r.productId,
+      productName: r.productName,
+      unitsSold: Number(r.unitsSold),
+      revenue: Number(r.revenue),
+    }));
+    res.json({ success: true, data });
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.get("/analytics", async (req, res, next) => {
+  try {
+    const days = Math.min(Math.max(Number(req.query.days) || 30, 1), 365);
+    const now = new Date();
+    const periodEnd = new Date(now);
+    periodEnd.setHours(23, 59, 59, 999);
+    const periodStart = new Date(now);
+    periodStart.setDate(periodStart.getDate() - days);
+    periodStart.setHours(0, 0, 0, 0);
+    const previousStart = new Date(periodStart);
+    previousStart.setDate(previousStart.getDate() - days);
+
+    const [
+      userCount,
+      productCount,
+      orderCount,
+      totalRevenue,
+      refundedAgg,
+      cancelledCount,
+      byStatus,
+      revenueThisPeriod,
+      ordersThisPeriod,
+      revenuePrevPeriod,
+      ordersPrevPeriod,
+      recentOrders,
+      usersThisPeriod,
+      usersPrevPeriod,
+    ] = await Promise.all([
       prisma.user.count({ where: { deletedAt: null } }),
       prisma.product.count({ where: { deletedAt: null } }),
       prisma.order.count(),
       prisma.order.aggregate({ _sum: { total: true }, where: { status: "DELIVERED" } }),
-      prisma.order.groupBy({ by: ["status"], _count: true }),
+      prisma.order.aggregate({ _sum: { total: true }, where: { status: "REFUNDED" } }),
+      prisma.order.count({ where: { status: "CANCELLED" } }),
+      prisma.order.groupBy({ by: ["status"], _count: true, _sum: { total: true } }),
+      prisma.order.aggregate({
+        _sum: { total: true },
+        where: { status: "DELIVERED", createdAt: { gte: periodStart, lte: periodEnd } },
+      }),
+      prisma.order.count({ where: { createdAt: { gte: periodStart, lte: periodEnd } } }),
+      prisma.order.aggregate({
+        _sum: { total: true },
+        where: { status: "DELIVERED", createdAt: { gte: previousStart, lt: periodStart } },
+      }),
+      prisma.order.count({ where: { createdAt: { gte: previousStart, lt: periodStart } } }),
       prisma.order.findMany({
         take: 10,
         orderBy: { createdAt: "desc" },
-        include: { user: { select: { email: true, fullName: true } }, items: { take: 3 } },
+        include: {
+          user: { select: { email: true, fullName: true } },
+          items: { include: { product: { select: { name: true } } }, take: 5 },
+        },
       }),
+      prisma.user.count({ where: { deletedAt: null, createdAt: { gte: periodStart, lte: periodEnd } } }),
+      prisma.user.count({ where: { deletedAt: null, createdAt: { gte: previousStart, lt: periodStart } } }),
     ]);
+
+    const revenue = totalRevenue._sum.total ? Number(totalRevenue._sum.total) : 0;
+    const refunded = refundedAgg._sum.total ? Number(refundedAgg._sum.total) : 0;
+    const revenueCurrent = revenueThisPeriod._sum.total ? Number(revenueThisPeriod._sum.total) : 0;
+    const revenuePrevious = revenuePrevPeriod._sum.total ? Number(revenuePrevPeriod._sum.total) : 0;
+    const ordersCurrent = ordersThisPeriod;
+    const ordersPrevious = ordersPrevPeriod;
+
+    const byStatusWithTotal = byStatus.map((s) => ({
+      status: s.status,
+      _count: s._count,
+      total: s._sum.total ? Number(s._sum.total) : 0,
+    }));
+
     res.json({
       success: true,
       data: {
         users: userCount,
         products: productCount,
         orders: orderCount,
-        revenue: totalRevenue._sum.total ? Number(totalRevenue._sum.total) : 0,
-        byStatus,
+        revenue,
+        refunded,
+        cancelledCount,
+        byStatus: byStatusWithTotal,
         recentOrders: recentOrders.map((o) => ({
-          ...o,
-          subtotal: Number(o.subtotal),
+          id: o.id,
+          status: o.status,
           total: Number(o.total),
+          createdAt: o.createdAt,
+          user: o.user,
+          items: o.items.map((i) => ({
+            productName: i.product.name,
+            quantity: i.quantity,
+            price: Number(i.price),
+          })),
         })),
+        period: { days },
+        comparison: {
+          revenueCurrent,
+          revenuePrevious,
+          ordersCurrent,
+          ordersPrevious,
+          usersCurrent: usersThisPeriod,
+          usersPrevious: usersPrevPeriod,
+        },
       },
     });
   } catch (e) {

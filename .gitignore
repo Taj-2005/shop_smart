@@ -28,6 +28,13 @@ client/next-env.d.ts
 server/dist/
 server/build/
 server/coverage/
+server/*.tsbuildinfo
+
+# =========================
+# E2E / Playwright
+# =========================
+e2e/test-results/
+e2e/playwright-report/
 
 # =========================
 # Logs
@@ -40,14 +47,20 @@ yarn-error.log*
 # =========================
 # Environment Files
 # =========================
-.env*
-client/.env*
-server/.env*
+.env
+.env.*
+client/.env
+client/.env.*
+server/.env
+server/.env.*
 
 # =========================
-# Misc
+# Editor & tooling
 # =========================
 .DS_Store
+.vscode/
+.idea/
+*.iml
 *.pem
 
 # =========================

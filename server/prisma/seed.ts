@@ -2,7 +2,7 @@ import "dotenv/config";
 import { PrismaClient, OrderStatus } from "@prisma/client";
 import * as bcrypt from "bcryptjs";
 
-const STATUSES: OrderStatus[] = ["PENDING", "CONFIRMED", "SHIPPED", "DELIVERED"];
+const STATUSES: OrderStatus[] = ["PENDING", "CONFIRMED", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED", "REFUNDED"];
 
 const prisma = new PrismaClient();
 
@@ -166,22 +166,53 @@ async function main() {
     products.push(prod);
   }
 
-  for (let i = 0; i < 30; i++) {
-    const userId = users[(i % users.length)].id;
-    const productId = products[i % products.length].id;
-    const qty = (i % 3) + 1;
-    const price = 1000 + (i % 5) * 500;
+  // Dashboard seed: orders spread over the last 60 days with varied statuses and multiple items per order
+  const orderCount = 90;
+  const now = new Date();
+  for (let i = 0; i < orderCount; i++) {
+    const userId = users[i % users.length].id;
+    // Spread orders over last 60 days (more recent = more orders)
+    const daysAgo = Math.floor((i / orderCount) * 55) + (i % 5);
+    const createdAt = new Date(now);
+    createdAt.setDate(createdAt.getDate() - daysAgo);
+    createdAt.setHours(10 + (i % 8), (i % 60), 0, 0);
+    // Weight statuses: many DELIVERED for revenue/charts, some others
+    const statusIndex = i % 10;
+    const status =
+      statusIndex < 5
+        ? "DELIVERED"
+        : statusIndex < 7
+          ? "SHIPPED"
+          : statusIndex < 8
+            ? "PENDING"
+            : statusIndex < 9
+              ? "CONFIRMED"
+              : "CANCELLED";
+    // 1–3 items per order from different products (so multiple categories)
+    const numItems = (i % 3) + 1;
+    const itemProductIds = new Set<string>();
+    while (itemProductIds.size < numItems) {
+      itemProductIds.add(products[(i * 7 + itemProductIds.size * 11) % products.length].id);
+    }
+    const productIds = Array.from(itemProductIds);
+    const items = productIds.map((productId, j) => {
+      const qty = (j % 2) + 1;
+      const price = 800 + (i + j) % 20 * 250;
+      return { productId, quantity: qty, price };
+    });
+    const subtotal = items.reduce((sum, it) => sum + it.price * it.quantity, 0);
+    const shipping = 99;
+    const total = subtotal + shipping;
     await prisma.order.create({
       data: {
         userId,
-        status: STATUSES[i % 4],
-        subtotal: price * qty,
+        status: status as OrderStatus,
+        subtotal,
         discount: 0,
-        shipping: 99,
-        total: price * qty + 99,
-        items: {
-          create: [{ productId, quantity: qty, price }],
-        },
+        shipping,
+        total,
+        createdAt,
+        items: { create: items },
       },
     });
   }
@@ -198,7 +229,7 @@ async function main() {
     });
   }
 
-  console.log("Seed completed: roles, categories, 50 users, 100 products, 30 orders, 40 reviews.");
+  console.log("Seed completed: roles, categories, 50 users, 100 products, 90 orders (60-day spread for dashboard), 40 reviews.");
 }
 
 main()

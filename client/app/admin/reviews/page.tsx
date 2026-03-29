@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { adminApi, type AdminReview } from "@/api/admin.api";
 import { reviewApi } from "@/api/review.api";
 import { toApiError } from "@/api/axios";
@@ -12,7 +12,7 @@ export default function AdminReviewsPage() {
   const [filter, setFilter] = useState<string>("all");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  const loadReviews = () => {
+  const loadReviews = useCallback(() => {
     setLoading(true);
     setError(null);
     adminApi
@@ -22,11 +22,11 @@ export default function AdminReviewsPage() {
       })
       .catch(() => setError("Failed to load reviews"))
       .finally(() => setLoading(false));
-  };
+  }, [filter]);
 
   useEffect(() => {
     loadReviews();
-  }, [filter]);
+  }, [loadReviews]);
 
   const handleStatus = async (id: string, status: "approved" | "rejected" | "pending" | "flagged") => {
     setUpdatingId(id);

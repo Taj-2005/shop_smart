@@ -25,6 +25,8 @@ const publicDir = path.join(__dirname, "..", "..", "public");
 app.use(
   helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" },
+    // Swagger UI relies on inline scripts/styles; Helmet's default CSP can blank the page.
+    contentSecurityPolicy: false,
   })
 );
 app.use(
@@ -55,12 +57,72 @@ app.get("/api-docs/icon.svg", (_req, res) => {
   res.set("Cache-Control", "public, max-age=86400");
   res.send(SHOPSMART_ICON_SVG);
 });
+app.get("/api-docs/architecture", (_req, res) => {
+  res.set("Cache-Control", "public, max-age=3600");
+  res.sendFile(path.join(publicDir, "architecture.html"));
+});
+const frontendUrl = env.FRONTEND_URL.replace(/\/$/, "");
+app.get("/api-docs/swagger-back-link.js", (_req, res) => {
+  res.type("application/javascript");
+  res.set("Cache-Control", "public, max-age=300");
+  res.send(`
+(function() {
+  function waitFor(selector, cb) {
+    var el = document.querySelector(selector);
+    if (el) return cb(el);
+    setTimeout(function() { waitFor(selector, cb); }, 50);
+  }
+  waitFor(".topbar-wrapper", function(navbar) {
+    if (document.querySelector(".back-to-shopsmart")) return;
+    var a = document.createElement("a");
+    a.href = ${JSON.stringify(frontendUrl + "/admin")};
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.className = "back-to-shopsmart";
+    a.textContent = "← Back to ShopSmart Admin";
+    navbar.appendChild(a);
+  });
+})();
+  `.trim());
+});
 app.use("/api", routes);
 const swaggerOptions: swaggerUi.SwaggerUiOptions = {
   customSiteTitle: "ShopSmart API",
   customfavIcon: "/api-docs/icon.svg",
+  customJs: "/api-docs/swagger-back-link.js",
+  customCss: `
+    .topbar-wrapper { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+    .back-to-shopsmart {
+      margin-left: auto;
+      padding: 6px 14px;
+      background: #00C2B2;
+      color: #fff !important;
+      border-radius: 6px;
+      text-decoration: none !important;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    .back-to-shopsmart:hover { background: #00a396; color: #fff !important; }
+    .information-container .info .description a[href="/api-docs/architecture"] {
+      display: inline-block;
+      margin: 0.5em 0;
+      padding: 0.6em 1.2em;
+      background: #00C2B2;
+      color: #fff !important;
+      border-radius: 8px;
+      text-decoration: none !important;
+      font-weight: bold;
+      box-shadow: 0 2px 4px rgba(0,194,178,0.3);
+    }
+    .information-container .info .description a[href="/api-docs/architecture"]:hover {
+      background: #00a396;
+      color: #fff !important;
+      box-shadow: 0 3px 8px rgba(0,194,178,0.4);
+    }
+  `,
   swaggerOptions: {
     layout: "BaseLayout",
+    persistAuthorization: true,
   },
 };
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec as swaggerUi.JsonObject, swaggerOptions));

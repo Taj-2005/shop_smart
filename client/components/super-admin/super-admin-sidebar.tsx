@@ -56,7 +56,7 @@ export function SuperAdminSidebar() {
         <div className="mt-4 border-t border-border pt-3">
           <Link
             href="/admin"
-            className="block rounded-[var(--radius-sm)] px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-primary"
+            className="flex items-center justify-between rounded-[var(--radius-sm)] bg-accent/10 px-3 py-2 text-xs font-semibold text-accent transition-colors hover:bg-accent/20"
           >
             ← Admin dashboard
           </Link>
@@ -65,16 +65,21 @@ export function SuperAdminSidebar() {
       <div className="border-t border-border p-3">
         <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
         <p className="truncate text-xs font-medium text-primary">{user?.fullName}</p>
-        <div className="mt-2 flex gap-2">
-          <Link href="/home" className="text-xs font-medium text-accent hover:underline">
-            Store
+        <div className="mt-3 flex flex-col gap-1.5">
+          <Link
+            href="/home"
+            className="flex items-center justify-between rounded-[var(--radius-sm)] bg-accent/10 px-3 py-2 text-xs font-semibold text-accent transition-colors hover:bg-accent/20"
+          >
+            Visit Store
+            <span aria-hidden="true">↗</span>
           </Link>
           <button
             type="button"
             onClick={handleLogout}
-            className="text-xs font-medium text-muted-foreground hover:text-primary"
+            className="flex items-center justify-between rounded-[var(--radius-sm)] bg-muted px-3 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-red-500/10 hover:text-red-500 w-full"
           >
             Log out
+            <span aria-hidden="true">→</span>
           </button>
         </div>
       </div>

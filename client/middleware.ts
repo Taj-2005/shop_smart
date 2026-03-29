@@ -7,7 +7,8 @@ import type { NextRequest } from "next/server";
  * protection is done client-side via ProtectedRoute (auth context + API).
  * This middleware passes through; no cookie checks.
  */
-export function middleware(_request: NextRequest) {
+export function middleware(request: NextRequest) {
+  void request;
   return NextResponse.next();
 }
 

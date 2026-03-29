@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -61,7 +60,7 @@ function GuestCartContent() {
     const p = getProductById(id);
     return sum + (p ? p.price * qty : 0);
   }, 0);
-  const [couponApplied, setCouponApplied] = useState(false);
+  const couponApplied = false;
   const discount = couponApplied ? Math.round(subtotal * 0.1) : 0;
   const total = subtotal - discount;
 

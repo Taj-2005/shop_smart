@@ -1,0 +1,66 @@
+name: Unit tests
+
+on:
+  push:
+    branches: [main, develop]
+    paths: ["server/**", "client/**", ".github/workflows/unit-tests.yml"]
+  pull_request:
+    branches: [main, develop]
+    paths: ["server/**", "client/**", ".github/workflows/unit-tests.yml"]
+
+env:
+  DOTENV: ${{ secrets.DOTENV }}
+
+jobs:
+  server-unit:
+    name: Server unit tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write .env file
+        run: printf '%s\n' "${DOTENV}" > .env
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Run unit tests
+        run: npm run test -- --testPathIgnorePatterns=integration
+
+  client-unit:
+    name: Client unit tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write .env file
+        run: printf '%s\n' "${DOTENV}" > .env
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm run test -- --passWithNoTests
