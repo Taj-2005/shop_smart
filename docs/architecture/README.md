@@ -21,6 +21,7 @@ This folder holds **system and software architecture** documentation for ShopSma
 | ID | Title | File |
 |----|--------|------|
 | ADR-001 | Monorepo architecture | [adr-001-monorepo.md](./adr-001-monorepo.md) |
+| ADR-002 | JWT auth via httpOnly cookies | [adr-002-auth.md](./adr-002-auth.md) |
 
 ## Conventions
 
