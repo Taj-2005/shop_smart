@@ -44,6 +44,24 @@ describe("errorHandler", () => {
       })
     );
   });
+
+  it("treats structural errors like AppError without requiring the class", () => {
+    const req = {} as Request;
+    const res = mockRes() as Response;
+    const next = jest.fn();
+    const err = { statusCode: 418, message: "I'm a teapot", code: "TEAPOT" };
+
+    errorHandler(err, req, res, next);
+
+    expect(res.status).toHaveBeenCalledWith(418);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: false,
+        message: "I'm a teapot",
+        code: "TEAPOT",
+      })
+    );
+  });
 });
 
 describe("AppError", () => {

@@ -1,4 +1,4 @@
-import * as authService from "../auth.service";
+import { authService } from "../auth.service";
 
 jest.mock("../../../config/prisma", () => ({
   prisma: {
@@ -18,10 +18,18 @@ jest.mock("../../../config/prisma", () => ({
   },
 }));
 
-jest.mock("../../../utils/email", () => ({
-  sendVerificationEmail: jest.fn().mockResolvedValue(undefined),
-  sendPasswordResetEmail: jest.fn().mockResolvedValue(undefined),
-}));
+jest.mock("../../../services/registry", () => {
+  const actual = jest.requireActual("../../../services/registry") as typeof import("../../../services/registry");
+  return {
+    ...actual,
+    authNotificationStrategies: [
+      {
+        channel: "email" as const,
+        send: jest.fn().mockResolvedValue(undefined),
+      },
+    ],
+  };
+});
 
 jest.mock("../../../utils/hash", () => ({
   hashPassword: jest.fn((p: string) => Promise.resolve(`hashed:${p}`)),
@@ -181,7 +189,7 @@ describe("auth.service", () => {
     beforeEach(resetMocks);
 
     it("returns user when found", async () => {
-      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any);
+      mockPrisma.user.findFirst.mockResolvedValue(mockUser as any);
 
       const result = await authService.me("user-1");
 
@@ -194,7 +202,7 @@ describe("auth.service", () => {
     });
 
     it("throws 404 when user not found", async () => {
-      mockPrisma.user.findUnique.mockResolvedValue(null);
+      mockPrisma.user.findFirst.mockResolvedValue(null);
 
       await expect(authService.me("missing-id")).rejects.toMatchObject({
         statusCode: 404,
