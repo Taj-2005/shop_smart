@@ -1,4 +1,4 @@
-import { AppError } from "../../middleware/errorHandler";
+import { AppErrorFactory } from "../../factories/AppErrorFactory";
 import { OrderStatus } from "@prisma/client";
 import { EventBus } from "../../events/EventBus";
 import type { OrderStatusValue } from "../../events/events.types";
@@ -24,12 +24,12 @@ export class OrderService {
 
   async create(userId: string, input: { addressId?: string; items: { productId: string; quantity: number }[] }) {
     const { addressId, items } = input;
-    if (!items?.length) throw new AppError(400, "items required", "VALIDATION_ERROR");
+    if (!items?.length) throw AppErrorFactory.validation("items required");
     const productIds = items.map((i) => i.productId);
     const products = await this.orders.findActiveProductsByIds(productIds);
     const lineInputs: OrderLineInput[] = items.map((oi) => {
       const product = products.find((p) => p.id === oi.productId);
-      if (!product) throw new AppError(400, "Product not found: " + oi.productId, "VALIDATION_ERROR");
+      if (!product) throw AppErrorFactory.validation("Product not found: " + oi.productId);
       return {
         productId: product.id,
         quantity: oi.quantity,
@@ -74,7 +74,7 @@ export class OrderService {
 
   async updateStatus(orderId: string, status: OrderStatus) {
     if (!Object.values(OrderStatus).includes(status)) {
-      throw new AppError(400, "Invalid status", "VALIDATION_ERROR");
+      throw AppErrorFactory.validation("Invalid status");
     }
     const existing = (await this.orders.findFirstByIdForAccess(orderId, {
       userId: "",

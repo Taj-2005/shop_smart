@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { validationResult, ValidationChain } from "express-validator";
-import { AppError } from "./errorHandler";
+import { AppErrorFactory } from "../factories/AppErrorFactory";
 
 export function validate(validations: ValidationChain[]) {
   return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
@@ -11,6 +11,6 @@ export function validate(validations: ValidationChain[]) {
       return;
     }
     const msg = errors.array().map((e) => (e as { msg: string }).msg).join("; ");
-    next(new AppError(400, msg, "VALIDATION_ERROR"));
+    next(AppErrorFactory.validation(msg));
   };
 }

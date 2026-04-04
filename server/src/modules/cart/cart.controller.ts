@@ -1,6 +1,7 @@
 import { Response, NextFunction } from "express";
 import type { AuthRequest } from "../../middleware/authenticate";
-import { AppError } from "../../middleware/errorHandler";
+import { ApiResponseFactory } from "../../factories/ApiResponseFactory";
+import { AppErrorFactory } from "../../factories/AppErrorFactory";
 import type { CartService } from "./cart.service";
 
 export function createCartController(cartService: CartService) {
@@ -8,7 +9,7 @@ export function createCartController(cartService: CartService) {
     async get(req: AuthRequest, res: Response, next: NextFunction) {
       try {
         const data = await cartService.getForUser(req.user!.id);
-        res.json({ success: true, data });
+        res.json(ApiResponseFactory.successData(data));
       } catch (e) {
         next(e);
       }
@@ -17,9 +18,9 @@ export function createCartController(cartService: CartService) {
     async post(req: AuthRequest, res: Response, next: NextFunction) {
       try {
         const { productId, quantity = 1 } = req.body;
-        if (!productId) return next(new AppError(400, "productId required", "VALIDATION_ERROR"));
+        if (!productId) return next(AppErrorFactory.validation("productId required"));
         const updated = await cartService.addItem(req.user!.id, productId, quantity);
-        res.status(201).json({ success: true, data: updated });
+        res.status(201).json(ApiResponseFactory.successData(updated));
       } catch (e) {
         next(e);
       }
@@ -29,7 +30,7 @@ export function createCartController(cartService: CartService) {
       try {
         const { quantity } = req.body;
         const data = await cartService.patchItem(req.user!.id, req.params.id, quantity);
-        res.json({ success: true, data });
+        res.json(ApiResponseFactory.successData(data));
       } catch (e) {
         next(e);
       }
@@ -38,7 +39,7 @@ export function createCartController(cartService: CartService) {
     async deleteItem(req: AuthRequest, res: Response, next: NextFunction) {
       try {
         await cartService.removeItem(req.user!.id, req.params.id);
-        res.json({ success: true, message: "Item removed" });
+        res.json(ApiResponseFactory.successMessage("Item removed"));
       } catch (e) {
         next(e);
       }

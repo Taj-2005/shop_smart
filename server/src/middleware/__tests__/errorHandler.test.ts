@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
-import { AppError, errorHandler } from "../errorHandler";
+import { errorHandler, AppError } from "../errorHandler";
+import { AppErrorFactory } from "../../factories/AppErrorFactory";
 
 function mockRes(): Partial<Response> {
   const res: Partial<Response> = {};
@@ -13,7 +14,7 @@ describe("errorHandler", () => {
     const req = {} as Request;
     const res = mockRes() as Response;
     const next = jest.fn();
-    const err = new AppError(404, "Not found", "NOT_FOUND");
+    const err = AppErrorFactory.notFound("Not found");
 
     errorHandler(err, req, res, next);
 
@@ -64,9 +65,10 @@ describe("errorHandler", () => {
   });
 });
 
-describe("AppError", () => {
-  it("creates error with statusCode and message", () => {
-    const e = new AppError(400, "Bad request", "VALIDATION_ERROR");
+describe("AppErrorFactory", () => {
+  it("creates AppError with statusCode and message", () => {
+    const e = AppErrorFactory.validation("Bad request");
+    expect(e).toBeInstanceOf(AppError);
     expect(e.statusCode).toBe(400);
     expect(e.message).toBe("Bad request");
     expect(e.code).toBe("VALIDATION_ERROR");

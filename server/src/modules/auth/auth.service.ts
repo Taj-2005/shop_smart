@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { Prisma, RoleType } from "@prisma/client";
 import { env } from "../../config/env";
-import { AppError } from "../../middleware/errorHandler";
+import { AppErrorFactory } from "../../factories/AppErrorFactory";
 import type { IAuthNotificationSender } from "../../interfaces/IAuthNotificationSender";
 import type { AuthNotificationContext } from "../../interfaces/INotificationKinds";
 import type { IHashService } from "../../interfaces/IHashService";
@@ -58,10 +58,10 @@ export class AuthService {
   }) {
     const email = data.email.toLowerCase().trim();
     const existing = await this.userReader.existsByEmail(email);
-    if (existing) throw new AppError(409, "An account with this email already exists", "CONFLICT");
+    if (existing) throw AppErrorFactory.conflict("An account with this email already exists");
 
     const roleId = await this.roleReader.findRoleIdByName(RoleType.CUSTOMER);
-    if (!roleId) throw new AppError(500, "Roles not seeded");
+    if (!roleId) throw AppErrorFactory.validation("Roles not seeded", { statusCode: 500, code: undefined });
 
     const passwordHash = await this.hash.hashPassword(data.password);
     const verifyToken = this.hash.generateToken();
@@ -109,10 +109,10 @@ export class AuthService {
     const email = data.email.toLowerCase().trim();
     const user = await this.userReader.findForLogin(email);
     if (!user || !user.active) {
-      throw new AppError(401, "Invalid email or password", "UNAUTHORIZED");
+      throw AppErrorFactory.unauthorized("Invalid email or password");
     }
     if (user.lockedUntil && user.lockedUntil > new Date()) {
-      throw new AppError(423, "Account temporarily locked. Try again later.", "LOCKED");
+      throw AppErrorFactory.unauthorized("Account temporarily locked. Try again later.", { statusCode: 423, code: "LOCKED" });
     }
 
     const match = await this.hash.comparePassword(data.password, user.passwordHash);
@@ -123,7 +123,7 @@ export class AuthService {
         updates.lockedUntil = new Date(Date.now() + env.LOCKOUT_MINUTES * 60 * 1000);
       }
       await this.userWriter.updateFailedLogin(user.id, updates);
-      throw new AppError(401, "Invalid email or password", "UNAUTHORIZED");
+      throw AppErrorFactory.unauthorized("Invalid email or password");
     }
 
     await this.userWriter.clearFailedLoginAndLockout(user.id);
@@ -156,13 +156,13 @@ export class AuthService {
     const tokenHash = this.hash.hashToken(refreshToken);
     const stored = await this.refreshStore.findValidWithUser(payload.jti, tokenHash);
     if (!stored || stored.expiresAt < new Date()) {
-      throw new AppError(401, "Invalid or expired refresh token", "UNAUTHORIZED");
+      throw AppErrorFactory.unauthorized("Invalid or expired refresh token");
     }
     await this.refreshStore.revokeById(stored.id);
 
     const user = stored.user;
     if (!user.active || user.deletedAt) {
-      throw new AppError(401, "User inactive", "UNAUTHORIZED");
+      throw AppErrorFactory.unauthorized("User inactive");
     }
 
     const accessToken = this.tokens.signAccessToken({
@@ -197,7 +197,7 @@ export class AuthService {
   async verifyEmail(token: string) {
     const tokenHash = this.hash.hashToken(token);
     const user = await this.userReader.findByEmailVerifyTokenHash(tokenHash);
-    if (!user) throw new AppError(400, "Invalid or expired verification link", "BAD_REQUEST");
+    if (!user) throw AppErrorFactory.validation("Invalid or expired verification link", { code: "BAD_REQUEST" });
     await this.userWriter.markEmailVerified(user.id);
     return { user: toUserResponse({ ...user, emailVerified: true }) };
   }
@@ -224,7 +224,7 @@ export class AuthService {
   async resetPassword(token: string, newPassword: string) {
     const tokenHash = this.hash.hashToken(token);
     const user = await this.userReader.findByPasswordResetTokenHash(tokenHash);
-    if (!user) throw new AppError(400, "Invalid or expired reset token", "BAD_REQUEST");
+    if (!user) throw AppErrorFactory.validation("Invalid or expired reset token", { code: "BAD_REQUEST" });
     const passwordHash = await this.hash.hashPassword(newPassword);
     await this.userWriter.applyPasswordReset(user.id, passwordHash);
     return { message: "Password has been reset." };
@@ -232,7 +232,7 @@ export class AuthService {
 
   async me(userId: string) {
     const user = await this.userReader.findWithRoleByIdForMe(userId);
-    if (!user) throw new AppError(404, "User not found", "NOT_FOUND");
+    if (!user) throw AppErrorFactory.notFound("User not found");
     return toUserResponse(user);
   }
 }

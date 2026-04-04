@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { ApiResponseFactory } from "../factories/ApiResponseFactory";
 import authRoutes from "../modules/auth/auth.routes";
 import userRoutes from "../modules/user/user.routes";
 import usersRoutes from "../modules/users/users.routes";
@@ -24,7 +25,7 @@ router.use("/admin", adminRoutes);
 router.use("/super-admin", superAdminRoutes);
 
 router.get("/health", (_req, res) => {
-  res.json({ success: true, message: "ShopSmart API" });
+  res.json(ApiResponseFactory.successMessage("ShopSmart API"));
 });
 
 export default router;

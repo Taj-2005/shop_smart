@@ -1,4 +1,4 @@
-import { AppError } from "../../middleware/errorHandler";
+import { AppErrorFactory } from "../../factories/AppErrorFactory";
 import type { ICartRepository } from "../../interfaces/ICartRepository";
 
 export class CartService {
@@ -25,9 +25,9 @@ export class CartService {
 
   async patchItem(userId: string, itemId: string, quantity: number) {
     const cart = await this.cart.findCartByUserId(userId);
-    if (!cart) throw new AppError(404, "Cart not found", "NOT_FOUND");
+    if (!cart) throw AppErrorFactory.notFound("Cart not found");
     const item = await this.cart.findItemInCart(cart.id, itemId);
-    if (!item) throw new AppError(404, "Cart item not found", "NOT_FOUND");
+    if (!item) throw AppErrorFactory.notFound("Cart item not found");
     if (quantity <= 0) {
       await this.cart.deleteItem(item.id);
       return { removed: true };
@@ -37,9 +37,9 @@ export class CartService {
 
   async removeItem(userId: string, itemId: string) {
     const cart = await this.cart.findCartByUserId(userId);
-    if (!cart) throw new AppError(404, "Cart not found", "NOT_FOUND");
+    if (!cart) throw AppErrorFactory.notFound("Cart not found");
     const item = await this.cart.findItemInCart(cart.id, itemId);
-    if (!item) throw new AppError(404, "Cart item not found", "NOT_FOUND");
+    if (!item) throw AppErrorFactory.notFound("Cart item not found");
     await this.cart.deleteItem(item.id);
   }
 }

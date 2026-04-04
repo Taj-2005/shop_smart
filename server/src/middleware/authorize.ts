@@ -1,16 +1,16 @@
 import { Response, NextFunction } from "express";
 import { AuthRequest } from "./authenticate";
-import { AppError } from "./errorHandler";
+import { AppErrorFactory } from "../factories/AppErrorFactory";
 import { type RoleType, ADMIN_ROLES, SUPER_ADMIN_ONLY } from "../constants/roles";
 
 export function authorize(...allowedRoles: RoleType[]) {
   return (req: AuthRequest, _res: Response, next: NextFunction): void => {
     if (!req.user) {
-      next(new AppError(401, "Authentication required", "UNAUTHORIZED"));
+      next(AppErrorFactory.unauthorized("Authentication required"));
       return;
     }
     if (!allowedRoles.includes(req.user.roleType as RoleType)) {
-      next(new AppError(403, "Forbidden", "FORBIDDEN"));
+      next(AppErrorFactory.unauthorized("Forbidden", { statusCode: 403, code: "FORBIDDEN" }));
       return;
     }
     next();

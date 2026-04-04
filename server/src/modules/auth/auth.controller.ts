@@ -2,7 +2,8 @@ import { Response, NextFunction } from "express";
 import { AuthRequest } from "../../middleware/authenticate";
 import { env } from "../../config/env";
 import { container } from "../../container";
-import { AppError } from "../../middleware/errorHandler";
+import { ApiResponseFactory } from "../../factories/ApiResponseFactory";
+import { AppErrorFactory } from "../../factories/AppErrorFactory";
 
 const ACCESS_MAX_AGE_MS = container.tokenService.getAccessTokenExpiresInSeconds() * 1000;
 const REFRESH_MAX_AGE_MS = env.JWT_REFRESH_EXPIRES_DAYS * 24 * 60 * 60 * 1000;
@@ -51,11 +52,7 @@ export async function register(
     });
     res.cookie(env.COOKIE_ACCESS_NAME, result.accessToken, cookieOptions(ACCESS_MAX_AGE_MS));
     res.cookie(env.COOKIE_REFRESH_NAME, result.refreshToken, cookieOptions(REFRESH_MAX_AGE_MS));
-    res.status(201).json({
-      success: true,
-      user: result.user,
-      accessToken: result.accessToken,
-    });
+    res.status(201).json(ApiResponseFactory.authSession(result.user, result.accessToken));
   } catch (e) {
     next(e);
   }
@@ -70,11 +67,7 @@ export async function login(
     const result = await container.authService.login(req.body, req.ip);
     res.cookie(env.COOKIE_ACCESS_NAME, result.accessToken, cookieOptions(ACCESS_MAX_AGE_MS));
     res.cookie(env.COOKIE_REFRESH_NAME, result.refreshToken, cookieOptions(REFRESH_MAX_AGE_MS));
-    res.json({
-      success: true,
-      user: result.user,
-      accessToken: result.accessToken,
-    });
+    res.json(ApiResponseFactory.authSession(result.user, result.accessToken));
   } catch (e) {
     next(e);
   }
@@ -88,17 +81,13 @@ export async function refresh(
   try {
     const token = getRefreshTokenFromReq(req);
     if (!token) {
-      next(new AppError(400, "Refresh token required", "BAD_REQUEST"));
+      next(AppErrorFactory.validation("Refresh token required", { code: "BAD_REQUEST" }));
       return;
     }
     const result = await container.authService.refresh(token);
     res.cookie(env.COOKIE_ACCESS_NAME, result.accessToken, cookieOptions(ACCESS_MAX_AGE_MS));
     res.cookie(env.COOKIE_REFRESH_NAME, result.refreshToken, cookieOptions(REFRESH_MAX_AGE_MS));
-    res.json({
-      success: true,
-      user: result.user,
-      accessToken: result.accessToken,
-    });
+    res.json(ApiResponseFactory.authSession(result.user, result.accessToken));
   } catch (e) {
     next(e);
   }
@@ -115,7 +104,7 @@ export async function logout(
     const clearOpts = clearCookieOptions();
     res.clearCookie(env.COOKIE_ACCESS_NAME, clearOpts);
     res.clearCookie(env.COOKIE_REFRESH_NAME, clearOpts);
-    res.json({ success: true, message: "Logged out" });
+    res.json(ApiResponseFactory.successMessage("Logged out"));
   } catch (e) {
     next(e);
   }
@@ -129,7 +118,7 @@ export async function verifyEmail(
   try {
     const { token } = req.body;
     const result = await container.authService.verifyEmail(token);
-    res.json({ success: true, user: result.user });
+    res.json(ApiResponseFactory.user(result.user));
   } catch (e) {
     next(e);
   }
@@ -143,7 +132,7 @@ export async function forgotPassword(
   try {
     const { email } = req.body;
     const result = await container.authService.forgotPassword(email);
-    res.json({ success: true, message: result.message });
+    res.json(ApiResponseFactory.successMessage(result.message));
   } catch (e) {
     next(e);
   }
@@ -157,7 +146,7 @@ export async function resetPassword(
   try {
     const { token, newPassword } = req.body;
     await container.authService.resetPassword(token, newPassword);
-    res.json({ success: true, message: "Password has been reset." });
+    res.json(ApiResponseFactory.successMessage("Password has been reset."));
   } catch (e) {
     next(e);
   }
@@ -166,11 +155,11 @@ export async function resetPassword(
 export async function me(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     if (!req.user) {
-      next(new AppError(401, "Authentication required", "UNAUTHORIZED"));
+      next(AppErrorFactory.unauthorized("Authentication required"));
       return;
     }
     const user = await container.authService.me(req.user.id);
-    res.json({ success: true, user });
+    res.json(ApiResponseFactory.user(user));
   } catch (e) {
     next(e);
   }

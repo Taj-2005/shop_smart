@@ -1,5 +1,5 @@
 import type { OrderStatus, PrismaClient } from "@prisma/client";
-import { AppError } from "../middleware/errorHandler";
+import { AppErrorFactory } from "../factories/AppErrorFactory";
 import { formatSqlReportDay } from "../utils/reportDate";
 import type { IAdminRepository } from "../interfaces/IAdminRepository";
 
@@ -190,7 +190,7 @@ export class PrismaAdminRepository implements IAdminRepository {
     active?: boolean;
   }) {
     const { code, type, value, minOrder, maxUses, expiresAt, active } = body;
-    if (!code || value == null) throw new AppError(400, "code and value required", "VALIDATION_ERROR");
+    if (!code || value == null) throw AppErrorFactory.validation("code and value required");
     const coupon = await this.prisma.coupon.create({
       data: {
         code: String(code).toUpperCase().trim(),

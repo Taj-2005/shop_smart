@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { logger } from "../config/logger";
+import { ApiResponseFactory } from "../factories/ApiResponseFactory";
 
 export class AppError extends Error {
   constructor(
@@ -55,9 +56,7 @@ export function errorHandler(
   }
 
   res.status(status).json({
-    success: false,
-    message,
-    code,
+    ...ApiResponseFactory.error(message, code),
     ...(process.env.NODE_ENV === "development" && { stack: stackFromUnknown(err) }),
   });
 }

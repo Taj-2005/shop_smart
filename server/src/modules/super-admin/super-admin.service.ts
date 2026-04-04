@@ -1,5 +1,5 @@
 import { RoleType } from "@prisma/client";
-import { AppError } from "../../middleware/errorHandler";
+import { AppErrorFactory } from "../../factories/AppErrorFactory";
 import type { IHashService } from "../../interfaces/IHashService";
 import type { ISuperAdminRepository } from "../../interfaces/ISuperAdminRepository";
 
@@ -11,12 +11,12 @@ export class SuperAdminService {
 
   async createAdmin(input: { email: string; password: string; fullName?: string }) {
     const { email, password, fullName } = input;
-    if (!email || !password) throw new AppError(400, "email and password required", "VALIDATION_ERROR");
+    if (!email || !password) throw AppErrorFactory.validation("email and password required");
     const normalizedEmail = String(email).toLowerCase().trim();
     const adminRole = await this.repo.findAdminRole();
-    if (!adminRole) throw new AppError(500, "ADMIN role not found", "INTERNAL_ERROR");
+    if (!adminRole) throw AppErrorFactory.validation("ADMIN role not found", { statusCode: 500, code: "INTERNAL_ERROR" });
     const existing = await this.repo.findUserByEmailNotDeleted(normalizedEmail);
-    if (existing) throw new AppError(409, "User already exists", "CONFLICT");
+    if (existing) throw AppErrorFactory.conflict("User already exists");
     const passwordHash = await this.hash.hashPassword(password);
     return this.repo.createAdminUser({
       email: normalizedEmail,
@@ -28,18 +28,19 @@ export class SuperAdminService {
 
   async deleteAdmin(id: string) {
     const target = await this.repo.findUserWithRoleNotDeleted(id);
-    if (!target) throw new AppError(404, "User not found", "NOT_FOUND");
-    if (target.role.name === "SUPER_ADMIN") throw new AppError(403, "Cannot delete Super Admin", "FORBIDDEN");
+    if (!target) throw AppErrorFactory.notFound("User not found");
+    if (target.role.name === "SUPER_ADMIN")
+      throw AppErrorFactory.unauthorized("Cannot delete Super Admin", { statusCode: 403, code: "FORBIDDEN" });
     await this.repo.softDeleteUser(id);
   }
 
   async updateUserRole(id: string, role: string) {
     const allowed = ["ADMIN", "CUSTOMER"];
     if (!role || !allowed.includes(role)) {
-      throw new AppError(400, "role must be one of: " + allowed.join(", "), "VALIDATION_ERROR");
+      throw AppErrorFactory.validation("role must be one of: " + allowed.join(", "));
     }
     const roleRecord = await this.repo.findRoleByName(role as RoleType);
-    if (!roleRecord) throw new AppError(400, "Role not found", "NOT_FOUND");
+    if (!roleRecord) throw AppErrorFactory.notFound("Role not found", { statusCode: 400 });
     return this.repo.updateUserRole(id, roleRecord.id);
   }
 

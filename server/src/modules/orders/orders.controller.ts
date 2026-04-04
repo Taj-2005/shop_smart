@@ -1,14 +1,15 @@
 import { Response, NextFunction } from "express";
 import { OrderStatus } from "@prisma/client";
 import { AuthRequest } from "../../middleware/authenticate";
-import { AppError } from "../../middleware/errorHandler";
+import { ApiResponseFactory } from "../../factories/ApiResponseFactory";
+import { AppErrorFactory } from "../../factories/AppErrorFactory";
 import { container } from "../../container";
 
 export async function create(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const userId = req.user!.id;
     const data = await container.orderService.create(userId, req.body);
-    res.status(201).json({ success: true, data });
+    res.status(201).json(ApiResponseFactory.successData(data));
   } catch (e) {
     next(e);
   }
@@ -17,7 +18,7 @@ export async function create(req: AuthRequest, res: Response, next: NextFunction
 export async function list(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     const data = await container.orderService.listForUser(req.user!.id);
-    res.json({ success: true, data });
+    res.json(ApiResponseFactory.successData(data));
   } catch (e) {
     next(e);
   }
@@ -28,10 +29,10 @@ export async function getById(req: AuthRequest, res: Response, next: NextFunctio
     const isAdmin = req.user?.roleType === "ADMIN" || req.user?.roleType === "SUPER_ADMIN";
     const data = await container.orderService.getById(req.params.id, { userId: req.user!.id, isAdmin });
     if (!data) {
-      next(new AppError(404, "Order not found", "NOT_FOUND"));
+      next(AppErrorFactory.notFound("Order not found"));
       return;
     }
-    res.json({ success: true, data });
+    res.json(ApiResponseFactory.successData(data));
   } catch (e) {
     next(e);
   }
@@ -41,7 +42,7 @@ export async function updateStatus(req: AuthRequest, res: Response, next: NextFu
   try {
     const { status } = req.body as { status: OrderStatus };
     const data = await container.orderService.updateStatus(req.params.id, status);
-    res.json({ success: true, data });
+    res.json(ApiResponseFactory.successData(data));
   } catch (e) {
     next(e);
   }
