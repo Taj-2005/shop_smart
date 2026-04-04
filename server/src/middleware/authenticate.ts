@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from "express";
 import { prisma } from "../config/prisma";
-import { verifyAccessToken, type AccessPayload } from "../utils/jwt";
 import { env } from "../config/env";
 import { AppError } from "./errorHandler";
+import { authProvider } from "../services/registry";
 
 export type AuthRequest = Request & {
   user?: { id: string; email: string; role: string; roleType: string };
@@ -33,7 +33,7 @@ export async function authenticate(
     return;
   }
   try {
-    const payload = verifyAccessToken(token) as AccessPayload;
+    const payload = authProvider.verifyAccessToken(token);
     const user = await prisma.user.findUnique({
       where: { id: payload.sub, active: true, deletedAt: null },
       include: { role: true },

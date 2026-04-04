@@ -2,10 +2,11 @@ import { v4 as uuidv4 } from "uuid";
 import { prisma } from "../../config/prisma";
 import { env } from "../../config/env";
 import { hashPassword, comparePassword, hashToken, generateToken } from "../../utils/hash";
-import { signAccessToken, signRefreshToken, verifyRefreshToken } from "../../utils/jwt";
-import { sendVerificationEmail, sendPasswordResetEmail } from "../../utils/email";
 import { AppError } from "../../middleware/errorHandler";
 import { Prisma } from "@prisma/client";
+import type { IAuthProvider } from "../../interfaces/IAuthProvider";
+import type { AuthNotificationContext, INotificationStrategy } from "../../interfaces/INotificationStrategy";
+import { authNotificationStrategies, authProvider } from "../../services/registry";
 
 const REFRESH_DAYS = env.JWT_REFRESH_EXPIRES_DAYS;
 const VERIFY_EXPIRES_MS = 24 * 60 * 60 * 1000;
@@ -32,6 +33,15 @@ function toUserResponse(user: {
 }
 
 export class AuthService {
+  constructor(
+    private readonly notificationStrategies: readonly INotificationStrategy[],
+    private readonly tokens: IAuthProvider
+  ) {}
+
+  private async dispatchNotifications(ctx: AuthNotificationContext): Promise<void> {
+    await Promise.all(this.notificationStrategies.map((s) => s.send(ctx)));
+  }
+
   async register(data: {
     email: string;
     password: string;
@@ -64,15 +74,19 @@ export class AuthService {
       include: { role: true },
     });
 
-    sendVerificationEmail(user.email, verifyToken).catch(() => {});
+    this.dispatchNotifications({
+      kind: "verification",
+      email: user.email,
+      token: verifyToken,
+    }).catch(() => {});
 
-    const accessToken = signAccessToken({
+    const accessToken = this.tokens.signAccessToken({
       sub: user.id,
       email: user.email,
       role: user.role.name,
     });
     const jti = uuidv4();
-    const refreshToken = signRefreshToken(user.id, jti);
+    const refreshToken = this.tokens.signRefreshToken(user.id, jti);
     const refreshExpires = new Date(Date.now() + REFRESH_DAYS * 24 * 60 * 60 * 1000);
     await prisma.refreshToken.create({
       data: {
@@ -86,7 +100,7 @@ export class AuthService {
     return {
       accessToken,
       refreshToken,
-      expiresIn: 3600,
+      expiresIn: this.tokens.getAccessTokenExpiresInSeconds(),
       user: toUserResponse(user),
     };
   }
@@ -120,13 +134,13 @@ export class AuthService {
       data: { failedLogins: 0, lockedUntil: null },
     });
 
-    const accessToken = signAccessToken({
+    const accessToken = this.tokens.signAccessToken({
       sub: user.id,
       email: user.email,
       role: user.role.name,
     });
     const jti = uuidv4();
-    const refreshToken = signRefreshToken(user.id, jti);
+    const refreshToken = this.tokens.signRefreshToken(user.id, jti);
     const refreshExpires = new Date(Date.now() + REFRESH_DAYS * 24 * 60 * 60 * 1000);
     await prisma.refreshToken.create({
       data: {
@@ -140,13 +154,13 @@ export class AuthService {
     return {
       accessToken,
       refreshToken,
-      expiresIn: 3600,
+      expiresIn: this.tokens.getAccessTokenExpiresInSeconds(),
       user: toUserResponse(user),
     };
   }
 
   async refresh(refreshToken: string) {
-    const payload = verifyRefreshToken(refreshToken);
+    const payload = this.tokens.verifyRefreshToken(refreshToken);
     const tokenHash = hashToken(refreshToken);
     const stored = await prisma.refreshToken.findFirst({
       where: { id: payload.jti, tokenHash, revoked: false },
@@ -162,13 +176,13 @@ export class AuthService {
       throw new AppError(401, "User inactive", "UNAUTHORIZED");
     }
 
-    const accessToken = signAccessToken({
+    const accessToken = this.tokens.signAccessToken({
       sub: user.id,
       email: user.email,
       role: user.role.name,
     });
     const jti = uuidv4();
-    const newRefresh = signRefreshToken(user.id, jti);
+    const newRefresh = this.tokens.signRefreshToken(user.id, jti);
     const refreshExpires = new Date(Date.now() + REFRESH_DAYS * 24 * 60 * 60 * 1000);
     await prisma.refreshToken.create({
       data: {
@@ -182,7 +196,7 @@ export class AuthService {
     return {
       accessToken,
       refreshToken: newRefresh,
-      expiresIn: 3600,
+      expiresIn: this.tokens.getAccessTokenExpiresInSeconds(),
       user: toUserResponse(user),
     };
   }
@@ -231,7 +245,11 @@ export class AuthService {
           resetTokenExpires: new Date(Date.now() + RESET_EXPIRES_MS),
         },
       });
-      await sendPasswordResetEmail(user.email, token);
+      await this.dispatchNotifications({
+        kind: "password_reset",
+        email: user.email,
+        token,
+      });
     }
     return { message: "If an account exists with this email, you will receive a reset link." };
   }
@@ -270,4 +288,4 @@ export class AuthService {
   }
 }
 
-export const authService = new AuthService();
+export const authService = new AuthService(authNotificationStrategies, authProvider);

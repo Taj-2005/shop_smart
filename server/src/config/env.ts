@@ -26,6 +26,15 @@ export const env = {
   SMTP_FROM: process.env.SMTP_FROM ?? "noreply@shopsmart.example.com",
   MAX_FAILED_LOGINS: parseInt(process.env.MAX_FAILED_LOGINS ?? "5", 10),
   LOCKOUT_MINUTES: parseInt(process.env.LOCKOUT_MINUTES ?? "15", 10),
+  /** jwt | oauth_jwt — resolved in services/registry.ts */
+  AUTH_PROVIDER: process.env.AUTH_PROVIDER ?? "jwt",
+  OAUTH_JWT_ACCESS_SECRET: process.env.OAUTH_JWT_ACCESS_SECRET,
+  OAUTH_JWT_REFRESH_SECRET: process.env.OAUTH_JWT_REFRESH_SECRET,
+  /** standard | percent_discount | free_shipping_threshold */
+  ORDER_PRICING_STRATEGY: process.env.ORDER_PRICING_STRATEGY ?? "standard",
+  ORDER_DISCOUNT_PERCENT: parseFloat(process.env.ORDER_DISCOUNT_PERCENT ?? "10"),
+  ORDER_FREE_SHIPPING_THRESHOLD: parseFloat(process.env.ORDER_FREE_SHIPPING_THRESHOLD ?? "100"),
+  ORDER_FLAT_SHIPPING: parseFloat(process.env.ORDER_FLAT_SHIPPING ?? "5"),
 };
 
 if (!env.DATABASE_URL) {

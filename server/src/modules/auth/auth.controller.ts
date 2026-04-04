@@ -3,8 +3,9 @@ import { AuthRequest } from "../../middleware/authenticate";
 import { env } from "../../config/env";
 import { authService } from "./auth.service";
 import { AppError } from "../../middleware/errorHandler";
+import { authProvider } from "../../services/registry";
 
-const ACCESS_MAX_AGE_MS = 3600 * 1000; // 1h, match JWT access expiry
+const ACCESS_MAX_AGE_MS = authProvider.getAccessTokenExpiresInSeconds() * 1000;
 const REFRESH_MAX_AGE_MS = env.JWT_REFRESH_EXPIRES_DAYS * 24 * 60 * 60 * 1000;
 
 function cookieOptions(maxAgeMs: number): { httpOnly: true; secure: boolean; sameSite: "none" | "lax" | "strict"; maxAge: number; path: string; domain?: string } {

@@ -1,6 +1,8 @@
 import { prisma } from "../../config/prisma";
 import { AppError } from "../../middleware/errorHandler";
 import { OrderStatus } from "@prisma/client";
+import type { IOrderPricingStrategy, OrderLineInput } from "../../interfaces/IOrderPricingStrategy";
+import { orderPricingStrategy } from "../../services/registry";
 
 function serializeOrder<T extends { subtotal: unknown; discount: unknown; shipping: unknown; total: unknown; items: { price: unknown }[] }>(order: T) {
   return {
@@ -14,6 +16,8 @@ function serializeOrder<T extends { subtotal: unknown; discount: unknown; shippi
 }
 
 export class OrderService {
+  constructor(private readonly pricing: IOrderPricingStrategy) {}
+
   async create(
     userId: string,
     input: { addressId?: string; items: { productId: string; quantity: number }[] }
@@ -22,24 +26,32 @@ export class OrderService {
     if (!items?.length) throw new AppError(400, "items required", "VALIDATION_ERROR");
     const productIds = items.map((i) => i.productId);
     const products = await prisma.product.findMany({ where: { id: { in: productIds }, deletedAt: null, active: true } });
-    let subtotal = 0;
-    const orderItems = items.map((oi) => {
+    const lineInputs: OrderLineInput[] = items.map((oi) => {
       const product = products.find((p) => p.id === oi.productId);
       if (!product) throw new AppError(400, "Product not found: " + oi.productId, "VALIDATION_ERROR");
-      const price = Number(product.price);
-      subtotal += price * oi.quantity;
-      return { productId: product.id, quantity: oi.quantity, price };
+      return {
+        productId: product.id,
+        quantity: oi.quantity,
+        unitPrice: Number(product.price),
+      };
     });
+    const breakdown = this.pricing.compute(lineInputs);
     const order = await prisma.order.create({
       data: {
         userId,
         addressId: addressId || null,
         status: OrderStatus.PENDING,
-        subtotal,
-        discount: 0,
-        shipping: 0,
-        total: subtotal,
-        items: { create: orderItems },
+        subtotal: breakdown.subtotal,
+        discount: breakdown.discount,
+        shipping: breakdown.shipping,
+        total: breakdown.total,
+        items: {
+          create: breakdown.lines.map((l) => ({
+            productId: l.productId,
+            quantity: l.quantity,
+            price: l.price,
+          })),
+        },
       },
       include: { items: { include: { product: true } } },
     });
@@ -86,4 +98,4 @@ export class OrderService {
   }
 }
 
-export const orderService = new OrderService();
+export const orderService = new OrderService(orderPricingStrategy);
