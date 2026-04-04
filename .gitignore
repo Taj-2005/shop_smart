@@ -29,6 +29,7 @@ server/dist/
 server/build/
 server/coverage/
 server/*.tsbuildinfo
+server/.jest-localstorage
 
 # =========================
 # E2E / Playwright
