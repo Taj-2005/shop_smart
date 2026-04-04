@@ -1,5 +1,7 @@
 import { AppError } from "../../middleware/errorHandler";
 import { OrderStatus } from "@prisma/client";
+import { EventBus } from "../../events/EventBus";
+import type { OrderStatusValue } from "../../events/events.types";
 import type { IOrderPricingStrategy, OrderLineInput } from "../../interfaces/IOrderPricingStrategy";
 import type { IOrderRepository } from "../../interfaces/IOrderRepository";
 
@@ -49,6 +51,13 @@ export class OrderService {
         price: l.price,
       })),
     });
+    const created = order as { id: string };
+    EventBus.emit("OrderStatusChanged", {
+      orderId: created.id,
+      userId,
+      previousStatus: OrderStatus.PENDING as OrderStatusValue,
+      status: OrderStatus.PENDING as OrderStatusValue,
+    });
     return serializeOrder(order as Parameters<typeof serializeOrder>[0]);
   }
 
@@ -67,11 +76,25 @@ export class OrderService {
     if (!Object.values(OrderStatus).includes(status)) {
       throw new AppError(400, "Invalid status", "VALIDATION_ERROR");
     }
+    const existing = (await this.orders.findFirstByIdForAccess(orderId, {
+      userId: "",
+      isAdmin: true,
+    })) as { userId: string; status: OrderStatus; id: string } | null;
+
     const order = (await this.orders.updateOrderStatus(orderId, status)) as {
+      id: string;
+      userId: string;
+      status: OrderStatus;
       subtotal: unknown;
       total: unknown;
       items: unknown;
     };
+    EventBus.emit("OrderStatusChanged", {
+      orderId: order.id,
+      userId: order.userId,
+      previousStatus: (existing?.status ?? order.status) as OrderStatusValue,
+      status: order.status as OrderStatusValue,
+    });
     return { ...order, subtotal: Number(order.subtotal), total: Number(order.total) };
   }
 }

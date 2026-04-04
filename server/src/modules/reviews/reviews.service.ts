@@ -1,4 +1,5 @@
 import { AppError } from "../../middleware/errorHandler";
+import { EventBus } from "../../events/EventBus";
 import type { IReviewRepository } from "../../interfaces/IReviewRepository";
 
 export class ReviewsService {
@@ -10,12 +11,19 @@ export class ReviewsService {
     if (rating < 1 || rating > 5) throw new AppError(400, "rating must be 1-5", "VALIDATION_ERROR");
     const product = await this.reviews.findProductNotDeleted(productId);
     if (!product) throw new AppError(404, "Product not found", "NOT_FOUND");
-    return this.reviews.createReview({
+    const review = (await this.reviews.createReview({
       userId,
       productId,
       rating,
       body: text || null,
+    })) as { id: string; userId: string; productId: string; rating: number };
+    EventBus.emit("ReviewSubmitted", {
+      reviewId: review.id,
+      userId: review.userId,
+      productId: review.productId,
+      rating: review.rating,
     });
+    return review;
   }
 
   async deleteReview(id: string) {
