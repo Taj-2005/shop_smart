@@ -1,8 +1,10 @@
 import { logger } from "../config/logger";
-import type { AuthNotificationContext, INotificationStrategy } from "../interfaces/INotificationStrategy";
+import type { IAuthNotificationSender } from "../interfaces/IAuthNotificationSender";
+import type { INotificationChannel } from "../interfaces/INotificationChannel";
+import type { AuthNotificationContext } from "../interfaces/INotificationKinds";
 
 /** SMS channel: extend with Twilio/etc. without changing AuthService. */
-export class SmsNotificationStrategy implements INotificationStrategy {
+export class SmsNotificationStrategy implements IAuthNotificationSender, INotificationChannel {
   readonly channel = "sms" as const;
 
   async send(ctx: AuthNotificationContext): Promise<void> {

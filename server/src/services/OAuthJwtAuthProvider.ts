@@ -1,6 +1,7 @@
 import jwt, { type SignOptions } from "jsonwebtoken";
 import { env } from "../config/env";
-import type { AccessTokenClaims, IAuthProvider } from "../interfaces/IAuthProvider";
+import type { AccessTokenClaims } from "../interfaces/IAccessTokenVerifier";
+import type { IAuthTokenProvider } from "../interfaces/IAuthTokenProvider";
 import { accessClaimsFromJwtPayload, refreshClaimsFromJwtPayload } from "../utils/authTokenPayloads";
 import { ACCESS_TOKEN_EXPIRES_SECONDS } from "../utils/jwt";
 
@@ -12,7 +13,7 @@ function refreshExpiresSeconds(): number {
  * OAuth-style JWT provider: separate signing keys from default JWT (env OAUTH_JWT_*).
  * Swap via AUTH_PROVIDER=oauth_jwt without changing AuthService or middleware.
  */
-export class OAuthJwtAuthProvider implements IAuthProvider {
+export class OAuthJwtAuthProvider implements IAuthTokenProvider {
   readonly name = "oauth_jwt";
 
   private accessSecret(): string {

@@ -1,6 +1,6 @@
 import { EmailNotificationStrategy } from "../services/EmailNotificationStrategy";
 
-/** @deprecated Prefer INotificationStrategy via AuthService / registry. Kept for callers outside auth. */
+/** @deprecated Prefer IAuthNotificationSender via AuthService / registry. Kept for callers outside auth. */
 const emailStrategy = new EmailNotificationStrategy();
 
 export async function sendVerificationEmail(to: string, token: string): Promise<void> {

@@ -1,11 +1,9 @@
 import nodemailer from "nodemailer";
 import { env } from "../config/env";
 import { logger } from "../config/logger";
-import type {
-  AuthNotificationContext,
-  AuthNotificationKind,
-  INotificationStrategy,
-} from "../interfaces/INotificationStrategy";
+import type { IAuthNotificationSender } from "../interfaces/IAuthNotificationSender";
+import type { INotificationChannel } from "../interfaces/INotificationChannel";
+import type { AuthNotificationContext, AuthNotificationKind } from "../interfaces/INotificationKinds";
 
 const transporter = env.SMTP_HOST
   ? nodemailer.createTransport({
@@ -44,7 +42,7 @@ const emailContent: Record<
   },
 };
 
-export class EmailNotificationStrategy implements INotificationStrategy {
+export class EmailNotificationStrategy implements IAuthNotificationSender, INotificationChannel {
   readonly channel = "email" as const;
 
   async send(ctx: AuthNotificationContext): Promise<void> {

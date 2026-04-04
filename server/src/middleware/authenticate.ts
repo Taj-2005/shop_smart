@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from "express";
-import { prisma } from "../config/prisma";
 import { env } from "../config/env";
 import { AppError } from "./errorHandler";
-import { authProvider } from "../services/registry";
+import { accessTokenVerifier } from "../services/registry";
+import { prismaAuthenticatedUserLoader } from "../repositories/PrismaAuthenticatedUserLoader";
 
 export type AuthRequest = Request & {
   user?: { id: string; email: string; role: string; roleType: string };
@@ -33,11 +33,8 @@ export async function authenticate(
     return;
   }
   try {
-    const payload = authProvider.verifyAccessToken(token);
-    const user = await prisma.user.findUnique({
-      where: { id: payload.sub, active: true, deletedAt: null },
-      include: { role: true },
-    });
+    const payload = accessTokenVerifier.verifyAccessToken(token);
+    const user = await prismaAuthenticatedUserLoader.loadActiveUser(payload.sub);
     if (!user) {
       next(new AppError(401, "User not found or inactive", "UNAUTHORIZED"));
       return;
@@ -45,8 +42,8 @@ export async function authenticate(
     req.user = {
       id: user.id,
       email: user.email,
-      role: user.role.id,
-      roleType: user.role.name,
+      role: user.roleId,
+      roleType: user.roleType,
     };
     next();
   } catch {

@@ -1,4 +1,5 @@
-import type { AccessTokenClaims, IAuthProvider } from "../interfaces/IAuthProvider";
+import type { AccessTokenClaims } from "../interfaces/IAccessTokenVerifier";
+import type { IAuthTokenProvider } from "../interfaces/IAuthTokenProvider";
 import {
   ACCESS_TOKEN_EXPIRES_SECONDS,
   signAccessToken,
@@ -7,7 +8,7 @@ import {
   verifyRefreshToken,
 } from "../utils/jwt";
 
-export class JwtAuthProvider implements IAuthProvider {
+export class JwtAuthProvider implements IAuthTokenProvider {
   readonly name = "jwt";
 
   signAccessToken(claims: AccessTokenClaims): string {

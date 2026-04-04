@@ -1,7 +1,7 @@
 import jwt, { type JwtPayload } from "jsonwebtoken";
-import type { AccessTokenClaims } from "../interfaces/IAuthProvider";
+import type { AccessTokenClaims } from "../interfaces/IAccessTokenVerifier";
 
-/** Same validation for every IAuthProvider implementation after jwt.verify. */
+/** Same validation for every IAuthTokenProvider implementation after jwt.verify. */
 export function accessClaimsFromJwtPayload(payload: JwtPayload): AccessTokenClaims & { type?: string } {
   const sub = payload.sub;
   const email = (payload as Record<string, unknown>).email;
