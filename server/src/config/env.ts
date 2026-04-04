@@ -34,11 +34,14 @@ export const env = {
   AUTH_PROVIDER: process.env.AUTH_PROVIDER ?? "jwt",
   OAUTH_JWT_ACCESS_SECRET: process.env.OAUTH_JWT_ACCESS_SECRET,
   OAUTH_JWT_REFRESH_SECRET: process.env.OAUTH_JWT_REFRESH_SECRET,
-  /** standard | percent_discount | free_shipping_threshold */
+  /** standard | percent_discount | free_shipping_threshold | fixed_discount */
   ORDER_PRICING_STRATEGY: process.env.ORDER_PRICING_STRATEGY ?? "standard",
   ORDER_DISCOUNT_PERCENT: finiteNumber(parseFloat(process.env.ORDER_DISCOUNT_PERCENT ?? "10"), 10),
+  ORDER_FIXED_DISCOUNT: finiteNumber(parseFloat(process.env.ORDER_FIXED_DISCOUNT ?? "0"), 0),
   ORDER_FREE_SHIPPING_THRESHOLD: finiteNumber(parseFloat(process.env.ORDER_FREE_SHIPPING_THRESHOLD ?? "100"), 100),
   ORDER_FLAT_SHIPPING: finiteNumber(parseFloat(process.env.ORDER_FLAT_SHIPPING ?? "5"), 5),
+  /** nodemailer | sendgrid */
+  EMAIL_PROVIDER: process.env.EMAIL_PROVIDER ?? "nodemailer",
 };
 
 if (!env.DATABASE_URL) {

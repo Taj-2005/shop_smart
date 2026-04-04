@@ -2,8 +2,10 @@ import { AppErrorFactory } from "../../factories/AppErrorFactory";
 import { OrderStatus } from "@prisma/client";
 import { EventBus } from "../../events/EventBus";
 import type { OrderStatusValue } from "../../events/events.types";
+import type { IDiscountStrategy } from "../../interfaces/IDiscountStrategy";
 import type { IOrderPricingStrategy, OrderLineInput } from "../../interfaces/IOrderPricingStrategy";
 import type { IOrderRepository } from "../../interfaces/IOrderRepository";
+import type { IShippingStrategy } from "../../interfaces/IShippingStrategy";
 
 function serializeOrder<T extends { subtotal: unknown; discount: unknown; shipping: unknown; total: unknown; items: { price: unknown }[] }>(order: T) {
   return {
@@ -19,6 +21,8 @@ function serializeOrder<T extends { subtotal: unknown; discount: unknown; shippi
 export class OrderService {
   constructor(
     private readonly pricing: IOrderPricingStrategy,
+    private readonly discount: IDiscountStrategy,
+    private readonly shipping: IShippingStrategy,
     private readonly orders: IOrderRepository
   ) {}
 
@@ -37,14 +41,17 @@ export class OrderService {
       };
     });
     const breakdown = this.pricing.compute(lineInputs);
+    const discount = this.discount.amountOff(breakdown.subtotal);
+    const shipping = this.shipping.cost(breakdown.subtotal);
+    const total = Math.max(0, breakdown.subtotal - discount) + shipping;
     const order = await this.orders.createOrderWithItems({
       userId,
       addressId: addressId || null,
       status: OrderStatus.PENDING,
       subtotal: breakdown.subtotal,
-      discount: breakdown.discount,
-      shipping: breakdown.shipping,
-      total: breakdown.total,
+      discount,
+      shipping,
+      total,
       items: breakdown.lines.map((l) => ({
         productId: l.productId,
         quantity: l.quantity,

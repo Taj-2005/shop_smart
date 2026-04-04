@@ -1,6 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 import { env } from "../config/env";
 import { bindAuthenticationDependencies } from "../middleware/authenticate";
+import type { IEmailProviderStrategy } from "../interfaces/IEmailProviderStrategy";
 import type { ITokenService } from "../interfaces/ITokenService";
 import { JwtTokenService } from "../services/JwtTokenService";
 import { OAuthJwtTokenService } from "../services/OAuthJwtTokenService";
@@ -9,7 +10,7 @@ import { NodemailerEmailService } from "../services/NodemailerEmailService";
 import { EmailNotificationStrategy } from "../services/EmailNotificationStrategy";
 import { PushNotificationStrategy } from "../services/PushNotificationStrategy";
 import { SmsNotificationStrategy } from "../services/SmsNotificationStrategy";
-import { resolveOrderPricingStrategy } from "../services/registry";
+import { resolveOrderCommerceStrategies } from "../services/registry";
 import { PrismaUserCredentialReader } from "../repositories/PrismaUserCredentialReader";
 import { PrismaUserCredentialWriter } from "../repositories/PrismaUserCredentialWriter";
 import { PrismaRefreshTokenStore } from "../repositories/PrismaRefreshTokenStore";
@@ -37,6 +38,13 @@ import { ReviewsService } from "../modules/reviews/reviews.service";
 import { createCartController } from "../modules/cart/cart.controller";
 import { createCategoriesController } from "../modules/categories/categories.controller";
 import { createReviewsController } from "../modules/reviews/reviews.controller";
+import { NodemailerStrategy } from "../strategies/email/NodemailerStrategy";
+import { SendGridStrategy } from "../strategies/email/SendGridStrategy";
+
+const emailProviderFactories: Record<string, () => IEmailProviderStrategy> = {
+  nodemailer: () => new NodemailerStrategy(),
+  sendgrid: () => new SendGridStrategy(),
+};
 
 function resolveTokenService(): ITokenService {
   const key = env.AUTH_PROVIDER.toLowerCase();
@@ -56,8 +64,14 @@ export class ServiceFactory {
     return new BcryptHashService();
   }
 
+  static resolveEmailProvider(): IEmailProviderStrategy {
+    const key = env.EMAIL_PROVIDER.toLowerCase();
+    const factory = emailProviderFactories[key] ?? emailProviderFactories.nodemailer;
+    return factory();
+  }
+
   static createEmailService(): NodemailerEmailService {
-    return new NodemailerEmailService();
+    return new NodemailerEmailService(ServiceFactory.resolveEmailProvider());
   }
 
   static createAuthService(
@@ -95,7 +109,8 @@ export class ServiceFactory {
   }
 
   static createOrderService(db: PrismaClient): OrderService {
-    return new OrderService(resolveOrderPricingStrategy(), new PrismaOrderRepository(db));
+    const commerce = resolveOrderCommerceStrategies();
+    return new OrderService(commerce.lines, commerce.discount, commerce.shipping, new PrismaOrderRepository(db));
   }
 
   static createProductService(db: PrismaClient): ProductService {
