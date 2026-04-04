@@ -4,8 +4,13 @@ export interface AccessTokenClaims {
   role: string;
 }
 
+/**
+ * Token issuance and verification. Implementations are substitutable: the same callers
+ * (AuthService, middleware) must receive tokens with identical claim shapes.
+ * `verify*` throws `jsonwebtoken.JsonWebTokenError` (or subclass) when the token is invalid
+ * or claims are missing — never returns partial/invalid claims.
+ */
 export interface IAuthProvider {
-  /** Stable id for logging / metrics (e.g. jwt, oauth_jwt). */
   readonly name: string;
   signAccessToken(claims: AccessTokenClaims): string;
   signRefreshToken(userId: string, jti: string): string;

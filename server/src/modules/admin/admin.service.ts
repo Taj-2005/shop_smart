@@ -1,6 +1,7 @@
 import { OrderStatus } from "@prisma/client";
 import { prisma } from "../../config/prisma";
 import { AppError } from "../../middleware/errorHandler";
+import { formatSqlReportDay } from "../../utils/reportDate";
 
 function mapCoupon(c: { value: unknown; minOrder: unknown } & Record<string, unknown>) {
   return { ...c, value: Number(c.value), minOrder: c.minOrder ? Number(c.minOrder) : null };
@@ -139,7 +140,7 @@ export class AdminService {
     `;
 
     return rows.map((r) => ({
-      date: r.date instanceof Date ? r.date.toISOString().slice(0, 10) : String(r.date).slice(0, 10),
+      date: formatSqlReportDay(r.date),
       orders: Number(r.orders),
       revenue: Number(r.revenue),
     }));

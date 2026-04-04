@@ -48,8 +48,9 @@ export class EmailNotificationStrategy implements INotificationStrategy {
   readonly channel = "email" as const;
 
   async send(ctx: AuthNotificationContext): Promise<void> {
+    if (!ctx.email?.trim()) return;
     const { subject, html } = emailContent[ctx.kind](ctx);
-    await this.sendMail(ctx.email, subject, html);
+    await this.sendMail(ctx.email.trim(), subject, html);
   }
 
   private async sendMail(to: string, subject: string, html: string): Promise<void> {

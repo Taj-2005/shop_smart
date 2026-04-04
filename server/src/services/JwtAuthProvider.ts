@@ -1,5 +1,11 @@
 import type { AccessTokenClaims, IAuthProvider } from "../interfaces/IAuthProvider";
-import { signAccessToken, signRefreshToken, verifyAccessToken, verifyRefreshToken } from "../utils/jwt";
+import {
+  ACCESS_TOKEN_EXPIRES_SECONDS,
+  signAccessToken,
+  signRefreshToken,
+  verifyAccessToken,
+  verifyRefreshToken,
+} from "../utils/jwt";
 
 export class JwtAuthProvider implements IAuthProvider {
   readonly name = "jwt";
@@ -21,7 +27,7 @@ export class JwtAuthProvider implements IAuthProvider {
   }
 
   getAccessTokenExpiresInSeconds(): number {
-    return 3600;
+    return ACCESS_TOKEN_EXPIRES_SECONDS;
   }
 }
 

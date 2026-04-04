@@ -17,8 +17,9 @@ const authProviderFactories: Record<string, () => IAuthProvider> = {
 };
 
 export function resolveAuthProvider(): IAuthProvider {
-  const factory = authProviderFactories[env.AUTH_PROVIDER.toLowerCase()];
-  return factory ? factory() : jwtAuthProvider;
+  const key = env.AUTH_PROVIDER.toLowerCase();
+  const factory = authProviderFactories[key] ?? authProviderFactories.jwt;
+  return factory();
 }
 
 export const authProvider = resolveAuthProvider();
@@ -30,8 +31,9 @@ const pricingFactories: Record<string, () => IOrderPricingStrategy> = {
 };
 
 export function resolveOrderPricingStrategy(): IOrderPricingStrategy {
-  const factory = pricingFactories[env.ORDER_PRICING_STRATEGY.toLowerCase()];
-  return factory ? factory() : new StandardOrderPricingStrategy();
+  const key = env.ORDER_PRICING_STRATEGY.toLowerCase();
+  const factory = pricingFactories[key] ?? pricingFactories.standard;
+  return factory();
 }
 
 export const orderPricingStrategy = resolveOrderPricingStrategy();

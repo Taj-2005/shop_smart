@@ -18,6 +18,11 @@ export interface OrderPricingBreakdown {
   lines: PricedOrderLine[];
 }
 
+/**
+ * Order totals from line inputs. Implementations are substitutable: `compute` must return
+ * finite numeric fields for any input array (including empty); invalid inputs are normalized
+ * by callers via shared sanitization, not by throwing from individual strategies.
+ */
 export interface IOrderPricingStrategy {
   compute(lines: OrderLineInput[]): OrderPricingBreakdown;
 }

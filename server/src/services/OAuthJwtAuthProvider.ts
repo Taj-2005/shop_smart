@@ -1,8 +1,8 @@
 import jwt, { type SignOptions } from "jsonwebtoken";
 import { env } from "../config/env";
 import type { AccessTokenClaims, IAuthProvider } from "../interfaces/IAuthProvider";
-
-const ACCESS_EXPIRES_SECONDS = 3600;
+import { accessClaimsFromJwtPayload, refreshClaimsFromJwtPayload } from "../utils/authTokenPayloads";
+import { ACCESS_TOKEN_EXPIRES_SECONDS } from "../utils/jwt";
 
 function refreshExpiresSeconds(): number {
   return env.JWT_REFRESH_EXPIRES_DAYS * 24 * 60 * 60;
@@ -24,7 +24,7 @@ export class OAuthJwtAuthProvider implements IAuthProvider {
   }
 
   signAccessToken(claims: AccessTokenClaims): string {
-    const options: SignOptions = { expiresIn: ACCESS_EXPIRES_SECONDS };
+    const options: SignOptions = { expiresIn: ACCESS_TOKEN_EXPIRES_SECONDS };
     return jwt.sign({ ...claims, type: "access", iss: this.name }, this.accessSecret(), options);
   }
 
@@ -34,15 +34,23 @@ export class OAuthJwtAuthProvider implements IAuthProvider {
   }
 
   verifyAccessToken(token: string): AccessTokenClaims & { type?: string } {
-    return jwt.verify(token, this.accessSecret()) as AccessTokenClaims & { type?: string };
+    const decoded = jwt.verify(token, this.accessSecret());
+    if (typeof decoded === "string") {
+      throw new jwt.JsonWebTokenError("Invalid token");
+    }
+    return accessClaimsFromJwtPayload(decoded);
   }
 
   verifyRefreshToken(token: string): { sub: string; jti: string; type?: string } {
-    return jwt.verify(token, this.refreshSecret()) as { sub: string; jti: string; type?: string };
+    const decoded = jwt.verify(token, this.refreshSecret());
+    if (typeof decoded === "string") {
+      throw new jwt.JsonWebTokenError("Invalid token");
+    }
+    return refreshClaimsFromJwtPayload(decoded);
   }
 
   getAccessTokenExpiresInSeconds(): number {
-    return ACCESS_EXPIRES_SECONDS;
+    return ACCESS_TOKEN_EXPIRES_SECONDS;
   }
 }
 
