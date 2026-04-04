@@ -1,4 +1,4 @@
-import * as authService from "../auth.service";
+import { authService } from "../auth.service";
 
 jest.mock("../../../config/prisma", () => ({
   prisma: {
@@ -181,7 +181,7 @@ describe("auth.service", () => {
     beforeEach(resetMocks);
 
     it("returns user when found", async () => {
-      mockPrisma.user.findUnique.mockResolvedValue(mockUser as any);
+      mockPrisma.user.findFirst.mockResolvedValue(mockUser as any);
 
       const result = await authService.me("user-1");
 
@@ -194,7 +194,7 @@ describe("auth.service", () => {
     });
 
     it("throws 404 when user not found", async () => {
-      mockPrisma.user.findUnique.mockResolvedValue(null);
+      mockPrisma.user.findFirst.mockResolvedValue(null);
 
       await expect(authService.me("missing-id")).rejects.toMatchObject({
         statusCode: 404,

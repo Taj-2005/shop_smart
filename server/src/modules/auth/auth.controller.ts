@@ -1,7 +1,7 @@
 import { Response, NextFunction } from "express";
 import { AuthRequest } from "../../middleware/authenticate";
 import { env } from "../../config/env";
-import * as authService from "./auth.service";
+import { authService } from "./auth.service";
 import { AppError } from "../../middleware/errorHandler";
 
 const ACCESS_MAX_AGE_MS = 3600 * 1000; // 1h, match JWT access expiry

@@ -3,9 +3,16 @@ import { AppError } from "../../src/middleware/errorHandler";
 
 jest.mock("../../src/modules/auth/auth.service", () => {
   const actual = jest.requireActual("../../src/modules/auth/auth.service");
+  const { authService } = actual;
+  const loginMock = jest.fn().mockRejectedValue(new AppError(401, "Invalid email or password", "UNAUTHORIZED"));
   return {
     ...actual,
-    login: jest.fn().mockRejectedValue(new AppError(401, "Invalid email or password", "UNAUTHORIZED")),
+    authService: new Proxy(authService, {
+      get(target, prop, receiver) {
+        if (prop === "login") return loginMock;
+        return Reflect.get(target, prop, receiver);
+      },
+    }),
   };
 });
 
