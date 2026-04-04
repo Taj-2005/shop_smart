@@ -1,0 +1,96 @@
+@startuml ShopSmart_DeploymentDiagram
+title ShopSmart - Deployment Diagram (Production)
+
+skinparam backgroundColor #FAFAFA
+skinparam node {
+  BackgroundColor #F0F4FF
+  BorderColor #6B7AFF
+}
+skinparam database {
+  BackgroundColor #FFF8E1
+  BorderColor #F0B429
+}
+skinparam artifact {
+  BackgroundColor #E8F9F7
+  BorderColor #00C2B2
+}
+skinparam ArrowColor #333
+skinparam shadowing false
+skinparam roundcorner 10
+
+' ─── DEVELOPER MACHINE ───
+node "Developer Machine (macOS)" as DevMachine {
+  artifact "shop_smart/ (source code)" as Src
+  artifact "docker-compose.yml (local dev)" as DC
+}
+
+' ─── GITHUB ───
+node "GitHub (VCS + CI/CD)" as GitHub {
+  artifact "Repository - main branch" as Repo
+  artifact "GitHub Actions (.github/workflows/)" as CICD
+}
+
+' ─── VERCEL ───
+node "Vercel Edge Network (Frontend)" as Vercel {
+  node "Node.js 20 Runtime" as VercelNode {
+    artifact "Next.js App (client/) SSR+SSG" as NextApp
+  }
+  note right of Vercel
+    ENV: NEXT_PUBLIC_API_URL
+    URL: shopsmart-web.vercel.app
+  end note
+}
+
+' ─── RENDER ───
+node "Render.com (Backend API)" as Render {
+  node "Node.js 20 Runtime - Port 443" as RenderNode {
+    artifact "Express Server (dist/src/server.js)" as ExpressArt
+    artifact "Swagger UI (/api-docs/)" as SwaggerArt
+  }
+  note right of Render
+    ENV: DATABASE_URL, JWT_ACCESS_SECRET
+    JWT_REFRESH_SECRET, SMTP_*, COOKIE_*
+    URL: shopsmart-r8p3.onrender.com
+  end note
+}
+
+' ─── NEON POSTGRESQL ───
+node "Neon Cloud (Serverless PostgreSQL)" as Neon {
+  database "PostgreSQL DB (SSL/TLS)" as PG
+  note right of PG
+    Tables: users, products, orders,
+    cart, reviews, coupons, audit_logs
+    Managed by: Prisma ORM
+  end note
+}
+
+' ─── EMAIL PROVIDER ───
+node "SMTP Provider (Gmail / SendGrid)" as SMTPNode {
+  artifact "Email Service - Port 587 TLS" as EmailSvc
+}
+
+' ─── END USER BROWSER ───
+node "End User Browser (Chrome / Safari)" as Browser {
+  artifact "React App (hydrated from SSR)" as BrowserApp
+  note right of Browser
+    Cookies (HttpOnly; Secure; SameSite=None):
+    accessToken  - short-lived (1h)
+    refreshToken - long-lived (30d)
+  end note
+}
+
+' ─── CONNECTIONS ───
+DevMachine -right-> GitHub : git push (SSH)
+
+GitHub --> Vercel  : Deploy trigger (client/ changes)
+GitHub --> Render  : Deploy trigger (server/ changes)
+
+Browser -down-> Vercel  : HTTPS 443 - Page requests
+Browser -down-> Render  : HTTPS 443 - Cross-origin API (withCredentials)
+
+Render  -down-> Neon    : PostgreSQL SSL port 5432 (Prisma)
+Render  -down-> SMTPNode : SMTP TLS port 587 (Nodemailer)
+
+Vercel  .right.> Render : NEXT_PUBLIC_API_URL
+
+@enduml
