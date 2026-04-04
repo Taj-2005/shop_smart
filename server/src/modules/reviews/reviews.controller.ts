@@ -1,36 +1,37 @@
-import { Response, NextFunction } from "express";
+import { Response } from "express";
 import type { AuthRequest } from "../../middleware/authenticate";
-import { ApiResponseFactory } from "../../factories/ApiResponseFactory";
 import type { ReviewsService } from "./reviews.service";
+import { BaseController } from "../../base/BaseController";
+
+class CreateReviewController extends BaseController {
+  constructor(private service: ReviewsService) { super(); }
+  protected async execute(req: AuthRequest, res: Response) {
+    const data = await this.service.create(req.user!.id, req.body);
+    res.status(201);
+    return data;
+  }
+}
+
+class DeleteReviewController extends BaseController {
+  constructor(private service: ReviewsService) { super(); }
+  protected async execute(req: AuthRequest) {
+    await this.service.deleteReview(req.params.id);
+    return { success: true, message: "Review deleted" };
+  }
+}
+
+class PatchReviewStatusController extends BaseController {
+  constructor(private service: ReviewsService) { super(); }
+  protected async execute(req: AuthRequest) {
+    const { status } = req.body as { status?: string };
+    return await this.service.setStatus(req.params.id, status);
+  }
+}
 
 export function createReviewsController(service: ReviewsService) {
   return {
-    async create(req: AuthRequest, res: Response, next: NextFunction) {
-      try {
-        const data = await service.create(req.user!.id, req.body);
-        res.status(201).json(ApiResponseFactory.successData(data));
-      } catch (e) {
-        next(e);
-      }
-    },
-
-    async delete(req: AuthRequest, res: Response, next: NextFunction) {
-      try {
-        await service.deleteReview(req.params.id);
-        res.json(ApiResponseFactory.successMessage("Review deleted"));
-      } catch (e) {
-        next(e);
-      }
-    },
-
-    async patchStatus(req: AuthRequest, res: Response, next: NextFunction) {
-      try {
-        const { status } = req.body as { status?: string };
-        const data = await service.setStatus(req.params.id, status);
-        res.json(ApiResponseFactory.successData(data));
-      } catch (e) {
-        next(e);
-      }
-    },
+    create: new CreateReviewController(service).handleRequest.bind(new CreateReviewController(service)),
+    delete: new DeleteReviewController(service).handleRequest.bind(new DeleteReviewController(service)),
+    patchStatus: new PatchReviewStatusController(service).handleRequest.bind(new PatchReviewStatusController(service)),
   };
 }

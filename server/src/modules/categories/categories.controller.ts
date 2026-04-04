@@ -1,27 +1,28 @@
-import { Response, NextFunction } from "express";
+import { Response } from "express";
 import type { Request } from "express";
-import { ApiResponseFactory } from "../../factories/ApiResponseFactory";
 import type { CategoriesService } from "./categories.service";
+import { BaseController } from "../../base/BaseController";
+
+class ListCategoriesController extends BaseController {
+  constructor(private service: CategoriesService) { super(); }
+  protected async execute() {
+    return await this.service.list();
+  }
+}
+
+class CreateCategoryController extends BaseController {
+  constructor(private service: CategoriesService) { super(); }
+  protected async execute(req: Request, res: Response) {
+    const { name, slug, description } = req.body;
+    const category = await this.service.create({ name, slug, description });
+    res.status(201);
+    return category;
+  }
+}
 
 export function createCategoriesController(service: CategoriesService) {
   return {
-    async list(_req: Request, res: Response, next: NextFunction) {
-      try {
-        const data = await service.list();
-        res.json(ApiResponseFactory.successData(data));
-      } catch (e) {
-        next(e);
-      }
-    },
-
-    async create(req: Request, res: Response, next: NextFunction) {
-      try {
-        const { name, slug, description } = req.body;
-        const category = await service.create({ name, slug, description });
-        res.status(201).json(ApiResponseFactory.successData(category));
-      } catch (e) {
-        next(e);
-      }
-    },
+    list: new ListCategoriesController(service).handleRequest.bind(new ListCategoriesController(service)),
+    create: new CreateCategoryController(service).handleRequest.bind(new CreateCategoryController(service)),
   };
 }

@@ -1,18 +1,17 @@
-import { Response, NextFunction } from "express";
+import { Response } from "express";
 import type { AuthRequest } from "../../middleware/authenticate";
-import { ApiResponseFactory } from "../../factories/ApiResponseFactory";
+import { AppErrorFactory } from "../../factories/AppErrorFactory";
 import { container } from "../../container";
+import { BaseController } from "../../base/BaseController";
 
-export async function patchMe(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
-  try {
+class PatchMeController extends BaseController {
+  protected async execute(req: AuthRequest, res: Response) {
     if (!req.user) {
-      res.status(401).json(ApiResponseFactory.clientError("Authentication required"));
-      return;
+      res.status(401);
+      throw AppErrorFactory.unauthorized("Authentication required");
     }
     const { fullName, avatarUrl } = req.body;
-    const data = await container.currentUserProfileService.patchProfile(req.user.id, { fullName, avatarUrl });
-    res.json(ApiResponseFactory.successData(data));
-  } catch (e) {
-    next(e);
+    return await container.currentUserProfileService.patchProfile(req.user.id, { fullName, avatarUrl });
   }
 }
+export const patchMe = new PatchMeController().handleRequest.bind(new PatchMeController());

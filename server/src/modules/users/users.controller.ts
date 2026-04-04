@@ -1,63 +1,49 @@
-import { Response, NextFunction } from "express";
+
 import type { AuthRequest } from "../../middleware/authenticate";
-import { ApiResponseFactory } from "../../factories/ApiResponseFactory";
 import { container } from "../../container";
+import { BaseController } from "../../base/BaseController";
 
-export async function list(_req: unknown, res: Response, next: NextFunction): Promise<void> {
-  try {
-    const data = await container.usersService.listForAdmin();
-    res.json(ApiResponseFactory.successData(data));
-  } catch (e) {
-    next(e);
+class ListUsersController extends BaseController {
+  protected async execute() {
+    return await container.usersService.listForAdmin();
   }
 }
+export const list = new ListUsersController().handleRequest.bind(new ListUsersController());
 
-export async function getById(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
-  try {
-    const data = await container.usersService.getById(req.params.id);
-    res.json(ApiResponseFactory.successData(data));
-  } catch (e) {
-    next(e);
+class GetUserByIdController extends BaseController {
+  protected async execute(req: AuthRequest) {
+    return await container.usersService.getById(req.params.id);
   }
 }
+export const getById = new GetUserByIdController().handleRequest.bind(new GetUserByIdController());
 
-export async function update(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
-  try {
+class UpdateUserController extends BaseController {
+  protected async execute(req: AuthRequest) {
     const { fullName, avatarUrl } = req.body;
-    const data = await container.usersService.updateProfile(req.params.id, { fullName, avatarUrl });
-    res.json(ApiResponseFactory.successData(data));
-  } catch (e) {
-    next(e);
+    return await container.usersService.updateProfile(req.params.id, { fullName, avatarUrl });
   }
 }
+export const update = new UpdateUserController().handleRequest.bind(new UpdateUserController());
 
-export async function remove(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
-  try {
+class RemoveUserController extends BaseController {
+  protected async execute(req: AuthRequest) {
     await container.usersService.softDelete(req.params.id);
-    res.json(ApiResponseFactory.successMessage("User deleted"));
-  } catch (e) {
-    next(e);
+    return { success: true, message: "User deleted" };
   }
 }
+export const remove = new RemoveUserController().handleRequest.bind(new RemoveUserController());
 
-export async function listOrders(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
-  try {
-    const data = await container.usersService.listOrdersForUser(req.params.id);
-    res.json(ApiResponseFactory.successData(data));
-  } catch (e) {
-    next(e);
+class ListUserOrdersController extends BaseController {
+  protected async execute(req: AuthRequest) {
+    return await container.usersService.listOrdersForUser(req.params.id);
   }
 }
+export const listOrders = new ListUserOrdersController().handleRequest.bind(new ListUserOrdersController());
 
-export async function getCart(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
-  try {
+class GetUserCartController extends BaseController {
+  protected async execute(req: AuthRequest) {
     const data = await container.usersService.getCartForUser(req.params.id);
-    if (!data) {
-      res.json(ApiResponseFactory.successData(null));
-      return;
-    }
-    res.json(ApiResponseFactory.successData(data));
-  } catch (e) {
-    next(e);
+    return data || null;
   }
 }
+export const getCart = new GetUserCartController().handleRequest.bind(new GetUserCartController());

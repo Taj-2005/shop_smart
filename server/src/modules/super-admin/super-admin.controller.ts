@@ -1,134 +1,113 @@
-import { Request, Response, NextFunction } from "express";
-import { ApiResponseFactory } from "../../factories/ApiResponseFactory";
+import { Request, Response } from "express";
 import { container } from "../../container";
+import { BaseController } from "../../base/BaseController";
 
 function clamp(n: number, min: number, max: number): number {
   return Math.min(Math.max(n, min), max);
 }
 
-export async function createAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
+class CreateAdminController extends BaseController {
+  protected async execute(req: Request, res: Response) {
     const data = await container.superAdminService.createAdmin(req.body);
-    res.status(201).json(ApiResponseFactory.successData(data));
-  } catch (e) {
-    next(e);
+    res.status(201);
+    return data;
   }
 }
+export const createAdmin = new CreateAdminController().handleRequest.bind(new CreateAdminController());
 
-export async function deleteAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
+class DeleteAdminController extends BaseController {
+  protected async execute(req: Request) {
     await container.superAdminService.deleteAdmin(req.params.id);
-    res.json(ApiResponseFactory.successMessage("Admin deleted"));
-  } catch (e) {
-    next(e);
+    return { success: true, message: "Admin deleted" };
   }
 }
+export const deleteAdmin = new DeleteAdminController().handleRequest.bind(new DeleteAdminController());
 
-export async function updateUserRole(req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
-    const data = await container.superAdminService.updateUserRole(req.params.id, req.body.role);
-    res.json(ApiResponseFactory.successData(data));
-  } catch (e) {
-    next(e);
+class UpdateUserRoleController extends BaseController {
+  protected async execute(req: Request) {
+    return await container.superAdminService.updateUserRole(req.params.id, req.body.role);
   }
 }
+export const updateUserRole = new UpdateUserRoleController().handleRequest.bind(new UpdateUserRoleController());
 
-export async function getConfig(req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
+class GetConfigController extends BaseController {
+  protected async execute(req: Request) {
     const key = req.query.key as string | undefined;
     if (key) {
-      const value = await container.superAdminService.getConfigValue(key);
-      res.json(ApiResponseFactory.successData(value));
-      return;
+      return await container.superAdminService.getConfigValue(key);
     }
-    const data = await container.superAdminService.getAllConfig();
-    res.json(ApiResponseFactory.successData(data));
-  } catch (e) {
-    next(e);
+    return await container.superAdminService.getAllConfig();
   }
 }
+export const getConfig = new GetConfigController().handleRequest.bind(new GetConfigController());
 
-export async function patchConfig(req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
+class PatchConfigController extends BaseController {
+  protected async execute(req: Request) {
     const { key, value } = req.body as { key: string; value: unknown };
     await container.superAdminService.patchConfig(key, value);
-    res.json(ApiResponseFactory.successMessage("Config updated"));
-  } catch (e) {
-    next(e);
+    return { success: true, message: "Config updated" };
   }
 }
+export const patchConfig = new PatchConfigController().handleRequest.bind(new PatchConfigController());
 
-export async function getPaymentConfig(_req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
-    const data = await container.superAdminService.getPaymentConfig();
-    res.json(ApiResponseFactory.successData(data));
-  } catch (e) {
-    next(e);
+class GetPaymentConfigController extends BaseController {
+  protected async execute() {
+    return await container.superAdminService.getPaymentConfig();
   }
 }
+export const getPaymentConfig = new GetPaymentConfigController().handleRequest.bind(new GetPaymentConfigController());
 
-export async function patchPaymentConfig(req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
+class PatchPaymentConfigController extends BaseController {
+  protected async execute(req: Request) {
     await container.superAdminService.patchPaymentConfig(req.body as Record<string, unknown>);
-    res.json(ApiResponseFactory.successMessage("Payment config updated"));
-  } catch (e) {
-    next(e);
+    return { success: true, message: "Payment config updated" };
   }
 }
+export const patchPaymentConfig = new PatchPaymentConfigController().handleRequest.bind(new PatchPaymentConfigController());
 
-export async function getShippingProviders(_req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
-    const data = await container.superAdminService.getShippingProviders();
-    res.json(ApiResponseFactory.successData(data));
-  } catch (e) {
-    next(e);
+class GetShippingProvidersController extends BaseController {
+  protected async execute() {
+    return await container.superAdminService.getShippingProviders();
   }
 }
+export const getShippingProviders = new GetShippingProvidersController().handleRequest.bind(new GetShippingProvidersController());
 
-export async function patchShippingProviders(req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
+class PatchShippingProvidersController extends BaseController {
+  protected async execute(req: Request) {
     const value = Array.isArray(req.body) ? req.body : [];
     await container.superAdminService.patchShippingProviders(value);
-    res.json(ApiResponseFactory.successMessage("Shipping providers updated"));
-  } catch (e) {
-    next(e);
+    return { success: true, message: "Shipping providers updated" };
   }
 }
+export const patchShippingProviders = new PatchShippingProvidersController().handleRequest.bind(new PatchShippingProvidersController());
 
-export async function getFeatureFlags(_req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
-    const data = await container.superAdminService.getFeatureFlags();
-    res.json(ApiResponseFactory.successData(data));
-  } catch (e) {
-    next(e);
+class GetFeatureFlagsController extends BaseController {
+  protected async execute() {
+    return await container.superAdminService.getFeatureFlags();
   }
 }
+export const getFeatureFlags = new GetFeatureFlagsController().handleRequest.bind(new GetFeatureFlagsController());
 
-export async function patchFeatureFlags(req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
+class PatchFeatureFlagsController extends BaseController {
+  protected async execute(req: Request) {
     await container.superAdminService.patchFeatureFlags(req.body as Record<string, boolean>);
-    res.json(ApiResponseFactory.successMessage("Feature flags updated"));
-  } catch (e) {
-    next(e);
+    return { success: true, message: "Feature flags updated" };
   }
 }
+export const patchFeatureFlags = new PatchFeatureFlagsController().handleRequest.bind(new PatchFeatureFlagsController());
 
-export async function topProducts(req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
+class TopProductsController extends BaseController {
+  protected async execute(req: Request) {
     const limit = clamp(Number(req.query.limit) || 10, 1, 50);
-    const data = await container.superAdminService.topProducts(limit);
-    res.json(ApiResponseFactory.successData(data));
-  } catch (e) {
-    next(e);
+    return await container.superAdminService.topProducts(limit);
   }
 }
+export const topProducts = new TopProductsController().handleRequest.bind(new TopProductsController());
 
-export async function analytics(req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
+class SuperAdminAnalyticsController extends BaseController {
+  protected async execute(req: Request) {
     const days = clamp(Number(req.query.days) || 30, 1, 365);
-    const data = await container.superAdminService.analytics(days);
-    res.json(ApiResponseFactory.successData(data));
-  } catch (e) {
-    next(e);
+    return await container.superAdminService.analytics(days);
   }
 }
+export const analytics = new SuperAdminAnalyticsController().handleRequest.bind(new SuperAdminAnalyticsController());

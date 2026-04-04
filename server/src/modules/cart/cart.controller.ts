@@ -1,48 +1,48 @@
-import { Response, NextFunction } from "express";
+import { Response } from "express";
 import type { AuthRequest } from "../../middleware/authenticate";
-import { ApiResponseFactory } from "../../factories/ApiResponseFactory";
 import { AppErrorFactory } from "../../factories/AppErrorFactory";
 import type { CartService } from "./cart.service";
+import { BaseController } from "../../base/BaseController";
+
+class GetCartController extends BaseController {
+  constructor(private cartService: CartService) { super(); }
+  protected async execute(req: AuthRequest) {
+    return await this.cartService.getForUser(req.user!.id);
+  }
+}
+
+class PostCartController extends BaseController {
+  constructor(private cartService: CartService) { super(); }
+  protected async execute(req: AuthRequest, res: Response) {
+    const { productId, quantity = 1 } = req.body;
+    if (!productId) throw AppErrorFactory.validation("productId required");
+    const updated = await this.cartService.addItem(req.user!.id, productId, quantity);
+    res.status(201);
+    return updated;
+  }
+}
+
+class PatchCartItemController extends BaseController {
+  constructor(private cartService: CartService) { super(); }
+  protected async execute(req: AuthRequest) {
+    const { quantity } = req.body;
+    return await this.cartService.patchItem(req.user!.id, req.params.id, quantity);
+  }
+}
+
+class DeleteCartItemController extends BaseController {
+  constructor(private cartService: CartService) { super(); }
+  protected async execute(req: AuthRequest) {
+    await this.cartService.removeItem(req.user!.id, req.params.id);
+    return { success: true, message: "Item removed" };
+  }
+}
 
 export function createCartController(cartService: CartService) {
   return {
-    async get(req: AuthRequest, res: Response, next: NextFunction) {
-      try {
-        const data = await cartService.getForUser(req.user!.id);
-        res.json(ApiResponseFactory.successData(data));
-      } catch (e) {
-        next(e);
-      }
-    },
-
-    async post(req: AuthRequest, res: Response, next: NextFunction) {
-      try {
-        const { productId, quantity = 1 } = req.body;
-        if (!productId) return next(AppErrorFactory.validation("productId required"));
-        const updated = await cartService.addItem(req.user!.id, productId, quantity);
-        res.status(201).json(ApiResponseFactory.successData(updated));
-      } catch (e) {
-        next(e);
-      }
-    },
-
-    async patchItem(req: AuthRequest, res: Response, next: NextFunction) {
-      try {
-        const { quantity } = req.body;
-        const data = await cartService.patchItem(req.user!.id, req.params.id, quantity);
-        res.json(ApiResponseFactory.successData(data));
-      } catch (e) {
-        next(e);
-      }
-    },
-
-    async deleteItem(req: AuthRequest, res: Response, next: NextFunction) {
-      try {
-        await cartService.removeItem(req.user!.id, req.params.id);
-        res.json(ApiResponseFactory.successMessage("Item removed"));
-      } catch (e) {
-        next(e);
-      }
-    },
+    get: new GetCartController(cartService).handleRequest.bind(new GetCartController(cartService)),
+    post: new PostCartController(cartService).handleRequest.bind(new PostCartController(cartService)),
+    patchItem: new PatchCartItemController(cartService).handleRequest.bind(new PatchCartItemController(cartService)),
+    deleteItem: new DeleteCartItemController(cartService).handleRequest.bind(new DeleteCartItemController(cartService)),
   };
 }
