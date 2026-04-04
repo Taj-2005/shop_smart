@@ -1,7 +1,8 @@
 import { EmailNotificationStrategy } from "../services/EmailNotificationStrategy";
+import { NodemailerEmailService } from "../services/NodemailerEmailService";
 
-/** @deprecated Prefer IAuthNotificationSender via AuthService / registry. Kept for callers outside auth. */
-const emailStrategy = new EmailNotificationStrategy();
+/** @deprecated Prefer IAuthNotificationSender via AuthService / container. Kept for callers outside auth. */
+const emailStrategy = new EmailNotificationStrategy(new NodemailerEmailService());
 
 export async function sendVerificationEmail(to: string, token: string): Promise<void> {
   await emailStrategy.send({ kind: "verification", email: to, token });

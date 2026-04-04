@@ -1,8 +1,6 @@
 import { AppError } from "../../middleware/errorHandler";
 import type { IUserReader } from "../../interfaces/IUserReader";
 import type { IUserWriter } from "../../interfaces/IUserWriter";
-import { prismaUserReader } from "../../repositories/PrismaUserReader";
-import { prismaUserWriter } from "../../repositories/PrismaUserWriter";
 
 export class UsersService {
   constructor(
@@ -51,5 +49,3 @@ export class UsersService {
     };
   }
 }
-
-export const usersService = new UsersService(prismaUserReader, prismaUserWriter);

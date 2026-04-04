@@ -1,61 +1,10 @@
-import { authService } from "../auth.service";
-
-jest.mock("../../../config/prisma", () => ({
-  prisma: {
-    user: {
-      findFirst: jest.fn(),
-      findUnique: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-    },
-    role: { findUnique: jest.fn() },
-    refreshToken: {
-      findFirst: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      updateMany: jest.fn(),
-    },
-  },
-}));
-
-jest.mock("../../../services/registry", () => {
-  const actual = jest.requireActual("../../../services/registry") as typeof import("../../../services/registry");
-  return {
-    ...actual,
-    authNotificationStrategies: [
-      {
-        channel: "email" as const,
-        send: jest.fn().mockResolvedValue(undefined),
-      },
-    ],
-  };
-});
-
-jest.mock("../../../utils/hash", () => ({
-  hashPassword: jest.fn((p: string) => Promise.resolve(`hashed:${p}`)),
-  comparePassword: jest.fn(() => Promise.resolve(true)),
-  hashToken: jest.fn((t: string) => t + "-hashed"),
-  generateToken: jest.fn(() => "random-token"),
-}));
-
-import { prisma } from "../../../config/prisma";
-
-type MockPrisma = {
-  user: {
-    findFirst: jest.Mock;
-    findUnique: jest.Mock;
-    create: jest.Mock;
-    update: jest.Mock;
-  };
-  role: { findUnique: jest.Mock };
-  refreshToken: {
-    findFirst: jest.Mock;
-    create: jest.Mock;
-    update: jest.Mock;
-    updateMany: jest.Mock;
-  };
-};
-const mockPrisma = prisma as unknown as MockPrisma;
+import { AuthService } from "../auth.service";
+import type { IHashService } from "../../../interfaces/IHashService";
+import type { IRefreshTokenStore } from "../../../interfaces/IRefreshTokenStore";
+import type { IRoleReader } from "../../../interfaces/IRoleReader";
+import type { ITokenService } from "../../../interfaces/ITokenService";
+import type { IUserCredentialReader } from "../../../interfaces/IUserCredentialReader";
+import type { IUserCredentialWriter } from "../../../interfaces/IUserCredentialWriter";
 
 const customerRole = { id: "role-1", name: "CUSTOMER" };
 const mockUser = {
@@ -79,6 +28,59 @@ const mockUser = {
   resetTokenExpires: null,
 };
 
+function buildService(deps: {
+  userReader?: Partial<IUserCredentialReader>;
+  userWriter?: Partial<IUserCredentialWriter>;
+  refreshStore?: Partial<IRefreshTokenStore>;
+}) {
+  const notificationSenders = [{ channel: "email" as const, send: jest.fn().mockResolvedValue(undefined) }];
+  const hash: IHashService = {
+    hashPassword: jest.fn((p: string) => Promise.resolve(`hashed:${p}`)),
+    comparePassword: jest.fn(() => Promise.resolve(true)),
+    hashToken: jest.fn((t: string) => t + "-hashed"),
+    generateToken: jest.fn(() => "random-token"),
+  };
+  const tokens: ITokenService = {
+    name: "test",
+    signAccessToken: jest.fn(() => "access.jwt"),
+    signRefreshToken: jest.fn(() => "refresh.jwt"),
+    verifyRefreshToken: jest.fn(() => {
+      throw new Error("invalid");
+    }),
+    verifyAccessToken: jest.fn(),
+    getAccessTokenExpiresInSeconds: jest.fn(() => 3600),
+  };
+  const roleReader: IRoleReader = {
+    findRoleIdByName: jest.fn().mockResolvedValue("role-1"),
+  };
+  const userReader: IUserCredentialReader = {
+    existsByEmail: jest.fn(),
+    findForLogin: jest.fn(),
+    findWithRoleByIdForMe: jest.fn(),
+    findByEmailVerifyTokenHash: jest.fn(),
+    findByPasswordResetTokenHash: jest.fn(),
+    findBasicByEmail: jest.fn(),
+    ...deps.userReader,
+  };
+  const userWriter: IUserCredentialWriter = {
+    createCustomer: jest.fn(),
+    updateFailedLogin: jest.fn(),
+    clearFailedLoginAndLockout: jest.fn(),
+    markEmailVerified: jest.fn(),
+    setPasswordResetToken: jest.fn(),
+    applyPasswordReset: jest.fn(),
+    ...deps.userWriter,
+  };
+  const refreshStore: IRefreshTokenStore = {
+    create: jest.fn().mockResolvedValue(undefined),
+    findValidWithUser: jest.fn(),
+    revokeById: jest.fn(),
+    revokeAllByTokenHash: jest.fn(),
+    ...deps.refreshStore,
+  };
+  return new AuthService(notificationSenders, tokens, hash, roleReader, userReader, userWriter, refreshStore);
+}
+
 function resetMocks() {
   jest.clearAllMocks();
 }
@@ -88,12 +90,15 @@ describe("auth.service", () => {
     beforeEach(resetMocks);
 
     it("creates user and returns tokens when email is new", async () => {
-      mockPrisma.user.findFirst.mockResolvedValue(null);
-      mockPrisma.role.findUnique.mockResolvedValue(customerRole as any);
-      mockPrisma.user.create.mockResolvedValue(mockUser as any);
-      mockPrisma.refreshToken.create.mockResolvedValue({} as any);
+      const userReader = {
+        existsByEmail: jest.fn().mockResolvedValue(false),
+      };
+      const userWriter = {
+        createCustomer: jest.fn().mockResolvedValue(mockUser),
+      };
+      const svc = buildService({ userReader, userWriter });
 
-      const result = await authService.register({
+      const result = await svc.register({
         email: "new@test.com",
         password: "Pass123!",
         fullName: "New User",
@@ -108,24 +113,26 @@ describe("auth.service", () => {
         fullName: mockUser.fullName,
         role: "CUSTOMER",
       });
-      expect(mockPrisma.user.findFirst).toHaveBeenCalledWith(
-        expect.objectContaining({ where: expect.objectContaining({ email: "new@test.com" }) })
-      );
-      expect(mockPrisma.user.create).toHaveBeenCalled();
+      expect(userReader.existsByEmail).toHaveBeenCalledWith("new@test.com");
+      expect(userWriter.createCustomer).toHaveBeenCalled();
     });
 
     it("throws 409 when email already exists", async () => {
-      mockPrisma.user.findFirst.mockResolvedValue(mockUser as any);
+      const userReader = {
+        existsByEmail: jest.fn().mockResolvedValue(true),
+      };
+      const userWriter = { createCustomer: jest.fn() };
+      const svc = buildService({ userReader, userWriter });
 
       await expect(
-        authService.register({
+        svc.register({
           email: "u@test.com",
           password: "Pass123!",
           fullName: "User",
         })
       ).rejects.toMatchObject({ statusCode: 409, code: "CONFLICT" });
 
-      expect(mockPrisma.user.create).not.toHaveBeenCalled();
+      expect(userWriter.createCustomer).not.toHaveBeenCalled();
     });
   });
 
@@ -133,11 +140,15 @@ describe("auth.service", () => {
     beforeEach(resetMocks);
 
     it("returns tokens for valid credentials", async () => {
-      mockPrisma.user.findFirst.mockResolvedValue(mockUser as any);
-      mockPrisma.user.update.mockResolvedValue(mockUser as any);
-      mockPrisma.refreshToken.create.mockResolvedValue({} as any);
+      const userReader = {
+        findForLogin: jest.fn().mockResolvedValue(mockUser),
+      };
+      const userWriter = {
+        clearFailedLoginAndLockout: jest.fn().mockResolvedValue(undefined),
+      };
+      const svc = buildService({ userReader, userWriter });
 
-      const result = await authService.login({
+      const result = await svc.login({
         email: "u@test.com",
         password: "correct-password",
       });
@@ -148,11 +159,13 @@ describe("auth.service", () => {
     });
 
     it("throws 401 when user not found", async () => {
-      mockPrisma.user.findFirst.mockResolvedValue(null);
+      const userReader = { findForLogin: jest.fn().mockResolvedValue(null) };
+      const svc = buildService({ userReader });
 
-      await expect(
-        authService.login({ email: "none@test.com", password: "any" })
-      ).rejects.toMatchObject({ statusCode: 401, code: "UNAUTHORIZED" });
+      await expect(svc.login({ email: "none@test.com", password: "any" })).rejects.toMatchObject({
+        statusCode: 401,
+        code: "UNAUTHORIZED",
+      });
     });
 
     it("throws 423 when account is locked", async () => {
@@ -160,11 +173,13 @@ describe("auth.service", () => {
         ...mockUser,
         lockedUntil: new Date(Date.now() + 60000),
       };
-      mockPrisma.user.findFirst.mockResolvedValue(lockedUser as any);
+      const userReader = { findForLogin: jest.fn().mockResolvedValue(lockedUser) };
+      const svc = buildService({ userReader });
 
-      await expect(
-        authService.login({ email: "u@test.com", password: "any" })
-      ).rejects.toMatchObject({ statusCode: 423, code: "LOCKED" });
+      await expect(svc.login({ email: "u@test.com", password: "any" })).rejects.toMatchObject({
+        statusCode: 423,
+        code: "LOCKED",
+      });
     });
   });
 
@@ -172,7 +187,8 @@ describe("auth.service", () => {
     beforeEach(resetMocks);
 
     it("throws when refresh token is invalid JWT", async () => {
-      await expect(authService.refresh("invalid-jwt")).rejects.toThrow();
+      const svc = buildService({});
+      await expect(svc.refresh("invalid-jwt")).rejects.toThrow();
     });
   });
 
@@ -180,8 +196,10 @@ describe("auth.service", () => {
     beforeEach(resetMocks);
 
     it("does not throw when token is undefined", async () => {
-      await expect(authService.logout(undefined)).resolves.toBeUndefined();
-      expect(mockPrisma.refreshToken.updateMany).not.toHaveBeenCalled();
+      const refreshStore = { revokeAllByTokenHash: jest.fn() };
+      const svc = buildService({ refreshStore });
+      await expect(svc.logout(undefined)).resolves.toBeUndefined();
+      expect(refreshStore.revokeAllByTokenHash).not.toHaveBeenCalled();
     });
   });
 
@@ -189,9 +207,10 @@ describe("auth.service", () => {
     beforeEach(resetMocks);
 
     it("returns user when found", async () => {
-      mockPrisma.user.findFirst.mockResolvedValue(mockUser as any);
+      const userReader = { findWithRoleByIdForMe: jest.fn().mockResolvedValue(mockUser) };
+      const svc = buildService({ userReader });
 
-      const result = await authService.me("user-1");
+      const result = await svc.me("user-1");
 
       expect(result).toMatchObject({
         id: mockUser.id,
@@ -202,9 +221,10 @@ describe("auth.service", () => {
     });
 
     it("throws 404 when user not found", async () => {
-      mockPrisma.user.findFirst.mockResolvedValue(null);
+      const userReader = { findWithRoleByIdForMe: jest.fn().mockResolvedValue(null) };
+      const svc = buildService({ userReader });
 
-      await expect(authService.me("missing-id")).rejects.toMatchObject({
+      await expect(svc.me("missing-id")).rejects.toMatchObject({
         statusCode: 404,
         code: "NOT_FOUND",
       });

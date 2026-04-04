@@ -1,15 +1,22 @@
 import request from "supertest";
 import { AppError } from "../../src/middleware/errorHandler";
 
-jest.mock("../../src/modules/auth/auth.service", () => {
-  const actual = jest.requireActual("../../src/modules/auth/auth.service");
-  const { authService } = actual;
+jest.mock("../../src/container", () => {
+  const actual = jest.requireActual("../../src/container") as typeof import("../../src/container");
   const loginMock = jest.fn().mockRejectedValue(new AppError(401, "Invalid email or password", "UNAUTHORIZED"));
+  const inner = actual.container.authService;
   return {
     ...actual,
-    authService: new Proxy(authService, {
+    container: new Proxy(actual.container, {
       get(target, prop, receiver) {
-        if (prop === "login") return loginMock;
+        if (prop === "authService") {
+          return new Proxy(inner, {
+            get(tt, pp, rr) {
+              if (pp === "login") return loginMock;
+              return Reflect.get(tt, pp, rr);
+            },
+          });
+        }
         return Reflect.get(target, prop, receiver);
       },
     }),

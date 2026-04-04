@@ -1,5 +1,4 @@
 import type { IUserWriter } from "../../interfaces/IUserWriter";
-import { prismaUserWriter } from "../../repositories/PrismaUserWriter";
 
 /** Current-user profile updates: depends only on write-side user persistence. */
 export class CurrentUserProfileService {
@@ -9,5 +8,3 @@ export class CurrentUserProfileService {
     return this.users.updateProfile(userId, data);
   }
 }
-
-export const currentUserProfileService = new CurrentUserProfileService(prismaUserWriter);
