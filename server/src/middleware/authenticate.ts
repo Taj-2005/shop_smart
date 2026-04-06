@@ -1,12 +1,30 @@
 import { Request, Response, NextFunction } from "express";
 import { env } from "../config/env";
 import { AppError } from "./errorHandler";
-import { accessTokenVerifier } from "../services/registry";
-import { prismaAuthenticatedUserLoader } from "../repositories/PrismaAuthenticatedUserLoader";
+import type { IAccessTokenVerifier } from "../interfaces/IAccessTokenVerifier";
+import type { IAuthenticatedUserLoader } from "../interfaces/IAuthenticatedUserLoader";
 
 export type AuthRequest = Request & {
   user?: { id: string; email: string; role: string; roleType: string };
 };
+
+let accessTokenVerifier: IAccessTokenVerifier | null = null;
+let authenticatedUserLoader: IAuthenticatedUserLoader | null = null;
+
+export function bindAuthenticationDependencies(deps: {
+  accessTokenVerifier: IAccessTokenVerifier;
+  authenticatedUserLoader: IAuthenticatedUserLoader;
+}): void {
+  accessTokenVerifier = deps.accessTokenVerifier;
+  authenticatedUserLoader = deps.authenticatedUserLoader;
+}
+
+function requireAuthDeps(): { accessTokenVerifier: IAccessTokenVerifier; authenticatedUserLoader: IAuthenticatedUserLoader } {
+  if (!accessTokenVerifier || !authenticatedUserLoader) {
+    throw new Error("Authentication dependencies not bound (import ./container before routes)");
+  }
+  return { accessTokenVerifier, authenticatedUserLoader };
+}
 
 /**
  * Resolves JWT from request. Supports both:
@@ -22,19 +40,16 @@ function getAccessToken(req: Request): string | null {
   return req.cookies?.[env.COOKIE_ACCESS_NAME] ?? null;
 }
 
-export async function authenticate(
-  req: AuthRequest,
-  _res: Response,
-  next: NextFunction
-): Promise<void> {
+export async function authenticate(req: AuthRequest, _res: Response, next: NextFunction): Promise<void> {
+  const { accessTokenVerifier: verifier, authenticatedUserLoader: loader } = requireAuthDeps();
   const token = getAccessToken(req);
   if (!token) {
     next(new AppError(401, "Authentication required", "UNAUTHORIZED"));
     return;
   }
   try {
-    const payload = accessTokenVerifier.verifyAccessToken(token);
-    const user = await prismaAuthenticatedUserLoader.loadActiveUser(payload.sub);
+    const payload = verifier.verifyAccessToken(token);
+    const user = await loader.loadActiveUser(payload.sub);
     if (!user) {
       next(new AppError(401, "User not found or inactive", "UNAUTHORIZED"));
       return;

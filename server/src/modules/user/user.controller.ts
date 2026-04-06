@@ -1,6 +1,6 @@
 import { Response, NextFunction } from "express";
 import type { AuthRequest } from "../../middleware/authenticate";
-import { currentUserProfileService } from "./user.service";
+import { container } from "../../container";
 
 export async function patchMe(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -9,7 +9,7 @@ export async function patchMe(req: AuthRequest, res: Response, next: NextFunctio
       return;
     }
     const { fullName, avatarUrl } = req.body;
-    const data = await currentUserProfileService.patchProfile(req.user.id, { fullName, avatarUrl });
+    const data = await container.currentUserProfileService.patchProfile(req.user.id, { fullName, avatarUrl });
     res.json({ success: true, data });
   } catch (e) {
     next(e);

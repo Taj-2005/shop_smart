@@ -5,8 +5,8 @@ import type { IAuthNotificationSender } from "../interfaces/IAuthNotificationSen
 import type { IAuthTokenProvider } from "../interfaces/IAuthTokenProvider";
 import type { INotificationChannel } from "../interfaces/INotificationChannel";
 import type { IOrderPricingStrategy } from "../interfaces/IOrderPricingStrategy";
-import type { ISessionTokenIssuer } from "../interfaces/ISessionTokenIssuer";
 import type { IRefreshTokenVerifier } from "../interfaces/IRefreshTokenVerifier";
+import type { ISessionTokenIssuer } from "../interfaces/ISessionTokenIssuer";
 import { EmailNotificationStrategy } from "./EmailNotificationStrategy";
 import { FreeShippingThresholdOrderPricingStrategy } from "./FreeShippingThresholdOrderPricingStrategy";
 import { jwtAuthProvider } from "./JwtAuthProvider";
@@ -15,6 +15,7 @@ import { PercentageDiscountOrderPricingStrategy } from "./PercentageDiscountOrde
 import { PushNotificationStrategy } from "./PushNotificationStrategy";
 import { SmsNotificationStrategy } from "./SmsNotificationStrategy";
 import { StandardOrderPricingStrategy } from "./StandardOrderPricingStrategy";
+import { NodemailerEmailService } from "./NodemailerEmailService";
 
 const authProviderFactories: Record<string, () => IAuthTokenProvider> = {
   jwt: () => jwtAuthProvider,
@@ -39,7 +40,6 @@ export const accessTokenLifetime: IAccessTokenLifetime = authTokenProviderSingle
 export type AuthSessionTokens = ISessionTokenIssuer & IRefreshTokenVerifier & IAccessTokenLifetime;
 
 export const sessionTokenIssuer: AuthSessionTokens = authTokenProviderSingleton;
-
 const pricingFactories: Record<string, () => IOrderPricingStrategy> = {
   standard: () => new StandardOrderPricingStrategy(),
   percent_discount: () => new PercentageDiscountOrderPricingStrategy(),
@@ -57,7 +57,7 @@ export const orderPricingStrategy = resolveOrderPricingStrategy();
 export type AuthNotificationPipeline = IAuthNotificationSender & INotificationChannel;
 
 export const authNotificationStrategies: AuthNotificationPipeline[] = [
-  new EmailNotificationStrategy(),
+  new EmailNotificationStrategy(new NodemailerEmailService()),
   new SmsNotificationStrategy(),
   new PushNotificationStrategy(),
 ];

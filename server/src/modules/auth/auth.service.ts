@@ -1,24 +1,15 @@
 import { v4 as uuidv4 } from "uuid";
-import { RoleType } from "@prisma/client";
+import { Prisma, RoleType } from "@prisma/client";
 import { env } from "../../config/env";
-import { hashPassword, comparePassword, hashToken, generateToken } from "../../utils/hash";
 import { AppError } from "../../middleware/errorHandler";
-import { Prisma } from "@prisma/client";
 import type { IAuthNotificationSender } from "../../interfaces/IAuthNotificationSender";
 import type { AuthNotificationContext } from "../../interfaces/INotificationKinds";
+import type { IHashService } from "../../interfaces/IHashService";
 import type { IRefreshTokenStore } from "../../interfaces/IRefreshTokenStore";
 import type { IRoleReader } from "../../interfaces/IRoleReader";
+import type { ITokenService } from "../../interfaces/ITokenService";
 import type { IUserCredentialReader } from "../../interfaces/IUserCredentialReader";
 import type { IUserCredentialWriter } from "../../interfaces/IUserCredentialWriter";
-import type { AuthSessionTokens } from "../../services/registry";
-import {
-  authNotificationStrategies,
-  prismaRefreshTokenStore,
-  prismaRoleReader,
-  prismaUserCredentialReader,
-  prismaUserCredentialWriter,
-  sessionTokenIssuer,
-} from "./auth.dependencies";
 
 const REFRESH_DAYS = env.JWT_REFRESH_EXPIRES_DAYS;
 const VERIFY_EXPIRES_MS = 24 * 60 * 60 * 1000;
@@ -47,7 +38,8 @@ function toUserResponse(user: {
 export class AuthService {
   constructor(
     private readonly notificationSenders: readonly IAuthNotificationSender[],
-    private readonly tokens: AuthSessionTokens,
+    private readonly tokens: ITokenService,
+    private readonly hash: IHashService,
     private readonly roleReader: IRoleReader,
     private readonly userReader: IUserCredentialReader,
     private readonly userWriter: IUserCredentialWriter,
@@ -71,9 +63,9 @@ export class AuthService {
     const roleId = await this.roleReader.findRoleIdByName(RoleType.CUSTOMER);
     if (!roleId) throw new AppError(500, "Roles not seeded");
 
-    const passwordHash = await hashPassword(data.password);
-    const verifyToken = generateToken();
-    const verifyTokenHash = hashToken(verifyToken);
+    const passwordHash = await this.hash.hashPassword(data.password);
+    const verifyToken = this.hash.generateToken();
+    const verifyTokenHash = this.hash.hashToken(verifyToken);
 
     const user = await this.userWriter.createCustomer({
       email,
@@ -100,7 +92,7 @@ export class AuthService {
     const refreshExpires = new Date(Date.now() + REFRESH_DAYS * 24 * 60 * 60 * 1000);
     await this.refreshStore.create({
       id: jti,
-      tokenHash: hashToken(refreshToken),
+      tokenHash: this.hash.hashToken(refreshToken),
       userId: user.id,
       expiresAt: refreshExpires,
     });
@@ -123,7 +115,7 @@ export class AuthService {
       throw new AppError(423, "Account temporarily locked. Try again later.", "LOCKED");
     }
 
-    const match = await comparePassword(data.password, user.passwordHash);
+    const match = await this.hash.comparePassword(data.password, user.passwordHash);
     if (!match) {
       const failed = user.failedLogins + 1;
       const updates: Prisma.UserUpdateInput = { failedLogins: failed };
@@ -146,7 +138,7 @@ export class AuthService {
     const refreshExpires = new Date(Date.now() + REFRESH_DAYS * 24 * 60 * 60 * 1000);
     await this.refreshStore.create({
       id: jti,
-      tokenHash: hashToken(refreshToken),
+      tokenHash: this.hash.hashToken(refreshToken),
       userId: user.id,
       expiresAt: refreshExpires,
     });
@@ -161,7 +153,7 @@ export class AuthService {
 
   async refresh(refreshToken: string) {
     const payload = this.tokens.verifyRefreshToken(refreshToken);
-    const tokenHash = hashToken(refreshToken);
+    const tokenHash = this.hash.hashToken(refreshToken);
     const stored = await this.refreshStore.findValidWithUser(payload.jti, tokenHash);
     if (!stored || stored.expiresAt < new Date()) {
       throw new AppError(401, "Invalid or expired refresh token", "UNAUTHORIZED");
@@ -183,7 +175,7 @@ export class AuthService {
     const refreshExpires = new Date(Date.now() + REFRESH_DAYS * 24 * 60 * 60 * 1000);
     await this.refreshStore.create({
       id: jti,
-      tokenHash: hashToken(newRefresh),
+      tokenHash: this.hash.hashToken(newRefresh),
       userId: user.id,
       expiresAt: refreshExpires,
     });
@@ -198,12 +190,12 @@ export class AuthService {
 
   async logout(refreshToken: string | undefined) {
     if (!refreshToken) return;
-    const tokenHash = hashToken(refreshToken);
+    const tokenHash = this.hash.hashToken(refreshToken);
     await this.refreshStore.revokeAllByTokenHash(tokenHash);
   }
 
   async verifyEmail(token: string) {
-    const tokenHash = hashToken(token);
+    const tokenHash = this.hash.hashToken(token);
     const user = await this.userReader.findByEmailVerifyTokenHash(tokenHash);
     if (!user) throw new AppError(400, "Invalid or expired verification link", "BAD_REQUEST");
     await this.userWriter.markEmailVerified(user.id);
@@ -213,8 +205,8 @@ export class AuthService {
   async forgotPassword(email: string) {
     const user = await this.userReader.findBasicByEmail(email.toLowerCase().trim());
     if (user) {
-      const token = generateToken();
-      const tokenHash = hashToken(token);
+      const token = this.hash.generateToken();
+      const tokenHash = this.hash.hashToken(token);
       await this.userWriter.setPasswordResetToken(
         user.id,
         tokenHash,
@@ -230,10 +222,10 @@ export class AuthService {
   }
 
   async resetPassword(token: string, newPassword: string) {
-    const tokenHash = hashToken(token);
+    const tokenHash = this.hash.hashToken(token);
     const user = await this.userReader.findByPasswordResetTokenHash(tokenHash);
     if (!user) throw new AppError(400, "Invalid or expired reset token", "BAD_REQUEST");
-    const passwordHash = await hashPassword(newPassword);
+    const passwordHash = await this.hash.hashPassword(newPassword);
     await this.userWriter.applyPasswordReset(user.id, passwordHash);
     return { message: "Password has been reset." };
   }
@@ -244,12 +236,3 @@ export class AuthService {
     return toUserResponse(user);
   }
 }
-
-export const authService = new AuthService(
-  authNotificationStrategies,
-  sessionTokenIssuer,
-  prismaRoleReader,
-  prismaUserCredentialReader,
-  prismaUserCredentialWriter,
-  prismaRefreshTokenStore
-);

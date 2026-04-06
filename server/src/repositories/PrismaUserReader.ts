@@ -1,9 +1,11 @@
-import { prisma } from "../config/prisma";
+import type { PrismaClient } from "@prisma/client";
 import type { IUserReader } from "../interfaces/IUserReader";
 
 export class PrismaUserReader implements IUserReader {
+  constructor(private readonly prisma: PrismaClient) {}
+
   async listUsersForAdmin(take: number) {
-    return prisma.user.findMany({
+    return this.prisma.user.findMany({
       where: { deletedAt: null },
       select: { id: true, email: true, fullName: true, role: true, active: true, createdAt: true },
       take,
@@ -11,14 +13,14 @@ export class PrismaUserReader implements IUserReader {
   }
 
   async findUserProfileById(id: string) {
-    return prisma.user.findFirst({
+    return this.prisma.user.findFirst({
       where: { id, deletedAt: null },
       select: { id: true, email: true, fullName: true, role: true, avatarUrl: true, createdAt: true },
     });
   }
 
   async findOrdersByUserId(userId: string, take: number) {
-    return prisma.order.findMany({
+    return this.prisma.order.findMany({
       where: { userId },
       include: { items: { include: { product: { select: { id: true, name: true } } } } },
       orderBy: { createdAt: "desc" },
@@ -27,11 +29,9 @@ export class PrismaUserReader implements IUserReader {
   }
 
   async findCartWithItemsByUserId(userId: string) {
-    return prisma.cart.findUnique({
+    return this.prisma.cart.findUnique({
       where: { userId },
       include: { items: { include: { product: true } } },
     });
   }
 }
-
-export const prismaUserReader = new PrismaUserReader();

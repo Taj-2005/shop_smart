@@ -1,19 +1,8 @@
-import nodemailer from "nodemailer";
 import { env } from "../config/env";
-import { logger } from "../config/logger";
 import type { IAuthNotificationSender } from "../interfaces/IAuthNotificationSender";
+import type { IEmailService } from "../interfaces/IEmailService";
 import type { INotificationChannel } from "../interfaces/INotificationChannel";
 import type { AuthNotificationContext, AuthNotificationKind } from "../interfaces/INotificationKinds";
-
-const transporter = env.SMTP_HOST
-  ? nodemailer.createTransport({
-      host: env.SMTP_HOST,
-      port: env.SMTP_PORT,
-      secure: env.SMTP_PORT === 465,
-      auth: env.SMTP_USER ? { user: env.SMTP_USER, pass: env.SMTP_PASS } : undefined,
-    })
-  : null;
-
 const emailContent: Record<
   AuthNotificationKind,
   (ctx: AuthNotificationContext) => { subject: string; html: string }
@@ -45,26 +34,11 @@ const emailContent: Record<
 export class EmailNotificationStrategy implements IAuthNotificationSender, INotificationChannel {
   readonly channel = "email" as const;
 
+  constructor(private readonly email: IEmailService) {}
+
   async send(ctx: AuthNotificationContext): Promise<void> {
     if (!ctx.email?.trim()) return;
     const { subject, html } = emailContent[ctx.kind](ctx);
-    await this.sendMail(ctx.email.trim(), subject, html);
-  }
-
-  private async sendMail(to: string, subject: string, html: string): Promise<void> {
-    if (!transporter) {
-      logger.info("Email not sent (no SMTP)", { to, subject });
-      return;
-    }
-    try {
-      await transporter.sendMail({
-        from: env.SMTP_FROM ?? "noreply@shopsmart.example.com",
-        to,
-        subject,
-        html,
-      });
-    } catch (e) {
-      logger.error("Email send failed", { to, subject, err: String(e) });
-    }
+    await this.email.sendMail(ctx.email.trim(), subject, html);
   }
 }

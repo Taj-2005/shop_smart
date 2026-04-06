@@ -1,11 +1,10 @@
 import { Response, NextFunction } from "express";
 import { AuthRequest } from "../../middleware/authenticate";
 import { env } from "../../config/env";
-import { authService } from "./auth.service";
+import { container } from "../../container";
 import { AppError } from "../../middleware/errorHandler";
-import { accessTokenLifetime } from "../../services/registry";
 
-const ACCESS_MAX_AGE_MS = accessTokenLifetime.getAccessTokenExpiresInSeconds() * 1000;
+const ACCESS_MAX_AGE_MS = container.tokenService.getAccessTokenExpiresInSeconds() * 1000;
 const REFRESH_MAX_AGE_MS = env.JWT_REFRESH_EXPIRES_DAYS * 24 * 60 * 60 * 1000;
 
 function cookieOptions(maxAgeMs: number): { httpOnly: true; secure: boolean; sameSite: "none" | "lax" | "strict"; maxAge: number; path: string; domain?: string } {
@@ -44,7 +43,7 @@ export async function register(
 ): Promise<void> {
   try {
     const { email, password, fullName, roleRequest } = req.body;
-    const result = await authService.register({
+    const result = await container.authService.register({
       email,
       password,
       fullName,
@@ -68,7 +67,7 @@ export async function login(
   next: NextFunction
 ): Promise<void> {
   try {
-    const result = await authService.login(req.body, req.ip);
+    const result = await container.authService.login(req.body, req.ip);
     res.cookie(env.COOKIE_ACCESS_NAME, result.accessToken, cookieOptions(ACCESS_MAX_AGE_MS));
     res.cookie(env.COOKIE_REFRESH_NAME, result.refreshToken, cookieOptions(REFRESH_MAX_AGE_MS));
     res.json({
@@ -92,7 +91,7 @@ export async function refresh(
       next(new AppError(400, "Refresh token required", "BAD_REQUEST"));
       return;
     }
-    const result = await authService.refresh(token);
+    const result = await container.authService.refresh(token);
     res.cookie(env.COOKIE_ACCESS_NAME, result.accessToken, cookieOptions(ACCESS_MAX_AGE_MS));
     res.cookie(env.COOKIE_REFRESH_NAME, result.refreshToken, cookieOptions(REFRESH_MAX_AGE_MS));
     res.json({
@@ -112,7 +111,7 @@ export async function logout(
 ): Promise<void> {
   try {
     const token = getRefreshTokenFromReq(req);
-    await authService.logout(token);
+    await container.authService.logout(token);
     const clearOpts = clearCookieOptions();
     res.clearCookie(env.COOKIE_ACCESS_NAME, clearOpts);
     res.clearCookie(env.COOKIE_REFRESH_NAME, clearOpts);
@@ -129,7 +128,7 @@ export async function verifyEmail(
 ): Promise<void> {
   try {
     const { token } = req.body;
-    const result = await authService.verifyEmail(token);
+    const result = await container.authService.verifyEmail(token);
     res.json({ success: true, user: result.user });
   } catch (e) {
     next(e);
@@ -143,7 +142,7 @@ export async function forgotPassword(
 ): Promise<void> {
   try {
     const { email } = req.body;
-    const result = await authService.forgotPassword(email);
+    const result = await container.authService.forgotPassword(email);
     res.json({ success: true, message: result.message });
   } catch (e) {
     next(e);
@@ -157,7 +156,7 @@ export async function resetPassword(
 ): Promise<void> {
   try {
     const { token, newPassword } = req.body;
-    await authService.resetPassword(token, newPassword);
+    await container.authService.resetPassword(token, newPassword);
     res.json({ success: true, message: "Password has been reset." });
   } catch (e) {
     next(e);
@@ -170,7 +169,7 @@ export async function me(req: AuthRequest, res: Response, next: NextFunction): P
       next(new AppError(401, "Authentication required", "UNAUTHORIZED"));
       return;
     }
-    const user = await authService.me(req.user.id);
+    const user = await container.authService.me(req.user.id);
     res.json({ success: true, user });
   } catch (e) {
     next(e);
