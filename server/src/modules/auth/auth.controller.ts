@@ -3,6 +3,7 @@ import { AuthRequest } from "../../middleware/authenticate";
 import { env } from "../../config/env";
 import { container } from "../../container";
 import { AppError } from "../../middleware/errorHandler";
+import { accessTokenLifetime } from "../../services/registry";
 
 const ACCESS_MAX_AGE_MS = container.tokenService.getAccessTokenExpiresInSeconds() * 1000;
 const REFRESH_MAX_AGE_MS = env.JWT_REFRESH_EXPIRES_DAYS * 24 * 60 * 60 * 1000;

@@ -1,4 +1,4 @@
 import type { ITokenService } from "./ITokenService";
 
-/** @deprecated Use ITokenService — same contract. */
-export type IAuthTokenProvider = ITokenService;
+/** Full token stack for a single deployment (JWT, OAuth-JWT, etc.). */
+export interface IAuthTokenProvider extends ITokenService {}
