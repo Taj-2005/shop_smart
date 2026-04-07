@@ -1,158 +1,114 @@
-import { Request, Response, NextFunction } from "express";
+import { Request, Response } from "express";
 import { OrderStatus } from "@prisma/client";
 import { container } from "../../container";
+import { BaseController } from "../../base/BaseController";
 
 function clampLimit(q: unknown, fallback: number, max: number): number {
   return Math.min(Number(q) || fallback, max);
 }
 
-export async function dashboard(_req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
-    const data = await container.adminService.dashboard();
-    res.json({ success: true, data });
-  } catch (e) {
-    next(e);
-  }
+class AdminDashboardController extends BaseController {
+  protected async execute() { return await container.adminService.dashboard(); }
 }
+export const dashboard = new AdminDashboardController().handleRequest.bind(new AdminDashboardController());
 
-export async function revenue(_req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
-    const data = await container.adminService.revenue();
-    res.json({ success: true, data });
-  } catch (e) {
-    next(e);
-  }
+class AdminRevenueController extends BaseController {
+  protected async execute() { return await container.adminService.revenue(); }
 }
+export const revenue = new AdminRevenueController().handleRequest.bind(new AdminRevenueController());
 
-export async function usersStats(_req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
-    const data = await container.adminService.usersStats();
-    res.json({ success: true, data });
-  } catch (e) {
-    next(e);
-  }
+class AdminUsersStatsController extends BaseController {
+  protected async execute() { return await container.adminService.usersStats(); }
 }
+export const usersStats = new AdminUsersStatsController().handleRequest.bind(new AdminUsersStatsController());
 
-export async function productsStats(_req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
-    const data = await container.adminService.productsStats();
-    res.json({ success: true, data });
-  } catch (e) {
-    next(e);
-  }
+class AdminProductsStatsController extends BaseController {
+  protected async execute() { return await container.adminService.productsStats(); }
 }
+export const productsStats = new AdminProductsStatsController().handleRequest.bind(new AdminProductsStatsController());
 
-export async function ordersStats(_req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
-    const data = await container.adminService.ordersStats();
-    res.json({ success: true, data });
-  } catch (e) {
-    next(e);
-  }
+class AdminOrdersStatsController extends BaseController {
+  protected async execute() { return await container.adminService.ordersStats(); }
 }
+export const ordersStats = new AdminOrdersStatsController().handleRequest.bind(new AdminOrdersStatsController());
 
-export async function listOrders(req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
+class AdminListOrdersController extends BaseController {
+  protected async execute(req: Request) {
     const limit = clampLimit(req.query.limit, 50, 100);
     const status = req.query.status as OrderStatus | undefined;
-    const data = await container.adminService.listOrders(limit, status);
-    res.json({ success: true, data });
-  } catch (e) {
-    next(e);
+    return await container.adminService.listOrders(limit, status);
   }
 }
+export const listOrders = new AdminListOrdersController().handleRequest.bind(new AdminListOrdersController());
 
-export async function listReviews(req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
+class AdminListReviewsController extends BaseController {
+  protected async execute(req: Request) {
     const limit = clampLimit(req.query.limit, 50, 100);
     const status = req.query.status as string | undefined;
-    const data = await container.adminService.listReviews(limit, status);
-    res.json({ success: true, data });
-  } catch (e) {
-    next(e);
+    return await container.adminService.listReviews(limit, status);
   }
 }
+export const listReviews = new AdminListReviewsController().handleRequest.bind(new AdminListReviewsController());
 
-export async function reportSales(_req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
-    const data = await container.adminService.reportSales();
-    res.json({ success: true, data });
-  } catch (e) {
-    next(e);
-  }
+class AdminReportSalesController extends BaseController {
+  protected async execute() { return await container.adminService.reportSales(); }
 }
+export const reportSales = new AdminReportSalesController().handleRequest.bind(new AdminReportSalesController());
 
-export async function reportRevenue(_req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
-    const data = await container.adminService.reportRevenue();
-    res.json({ success: true, data });
-  } catch (e) {
-    next(e);
-  }
+class AdminReportRevenueController extends BaseController {
+  protected async execute() { return await container.adminService.reportRevenue(); }
 }
+export const reportRevenue = new AdminReportRevenueController().handleRequest.bind(new AdminReportRevenueController());
 
-export async function reportTrend(req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
+class AdminReportTrendController extends BaseController {
+  protected async execute(req: Request) {
     const days = Math.min(Math.max(Number(req.query.days) || 30, 1), 365);
-    const data = await container.adminService.reportTrend(days);
-    res.json({ success: true, data });
-  } catch (e) {
-    next(e);
+    return await container.adminService.reportTrend(days);
   }
 }
+export const reportTrend = new AdminReportTrendController().handleRequest.bind(new AdminReportTrendController());
 
-export async function reportByCategory(_req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
-    const data = await container.adminService.reportByCategory();
-    res.json({ success: true, data });
-  } catch (e) {
-    next(e);
-  }
+class AdminReportByCategoryController extends BaseController {
+  protected async execute() { return await container.adminService.reportByCategory(); }
 }
+export const reportByCategory = new AdminReportByCategoryController().handleRequest.bind(new AdminReportByCategoryController());
 
-export async function listCoupons(req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
+class AdminListCouponsController extends BaseController {
+  protected async execute(req: Request) {
     const activeOnly = req.query.active === "true";
-    const data = await container.adminService.listCoupons(activeOnly);
-    res.json({ success: true, data });
-  } catch (e) {
-    next(e);
+    return await container.adminService.listCoupons(activeOnly);
   }
 }
+export const listCoupons = new AdminListCouponsController().handleRequest.bind(new AdminListCouponsController());
 
-export async function createCoupon(req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
+class AdminCreateCouponController extends BaseController {
+  protected async execute(req: Request, res: Response) {
     const data = await container.adminService.createCoupon(req.body);
-    res.status(201).json({ success: true, data });
-  } catch (e) {
-    next(e);
+    res.status(201);
+    return data;
   }
 }
+export const createCoupon = new AdminCreateCouponController().handleRequest.bind(new AdminCreateCouponController());
 
-export async function updateCoupon(req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
-    const data = await container.adminService.updateCoupon(req.params.id, req.body);
-    res.json({ success: true, data });
-  } catch (e) {
-    next(e);
+class AdminUpdateCouponController extends BaseController {
+  protected async execute(req: Request) {
+    return await container.adminService.updateCoupon(req.params.id, req.body);
   }
 }
+export const updateCoupon = new AdminUpdateCouponController().handleRequest.bind(new AdminUpdateCouponController());
 
-export async function deleteCoupon(req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
+class AdminDeleteCouponController extends BaseController {
+  protected async execute(req: Request) {
     await container.adminService.deleteCoupon(req.params.id);
-    res.json({ success: true, message: "Coupon deleted" });
-  } catch (e) {
-    next(e);
+    return { success: true, message: "Coupon deleted" };
   }
 }
+export const deleteCoupon = new AdminDeleteCouponController().handleRequest.bind(new AdminDeleteCouponController());
 
-export async function listLogs(req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
+class AdminListLogsController extends BaseController {
+  protected async execute(req: Request) {
     const limit = clampLimit(req.query.limit, 50, 100);
-    const data = await container.adminService.listLogs(limit);
-    res.json({ success: true, data });
-  } catch (e) {
-    next(e);
+    return await container.adminService.listLogs(limit);
   }
 }
+export const listLogs = new AdminListLogsController().handleRequest.bind(new AdminListLogsController());

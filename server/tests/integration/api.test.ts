@@ -1,9 +1,9 @@
 import request from "supertest";
-import { AppError } from "../../src/middleware/errorHandler";
+import { AppErrorFactory } from "../../src/factories/AppErrorFactory";
 
 jest.mock("../../src/container", () => {
   const actual = jest.requireActual("../../src/container") as typeof import("../../src/container");
-  const loginMock = jest.fn().mockRejectedValue(new AppError(401, "Invalid email or password", "UNAUTHORIZED"));
+  const loginMock = jest.fn().mockRejectedValue(AppErrorFactory.unauthorized("Invalid email or password"));
   const inner = actual.container.authService;
   return {
     ...actual,

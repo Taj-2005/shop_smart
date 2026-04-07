@@ -1,8 +1,9 @@
-import { Response, NextFunction } from "express";
+import { Response } from "express";
 import { AuthRequest } from "../../middleware/authenticate";
 import { env } from "../../config/env";
 import { container } from "../../container";
-import { AppError } from "../../middleware/errorHandler";
+import { AppErrorFactory } from "../../factories/AppErrorFactory";
+import { BaseController } from "../../base/BaseController";
 
 const ACCESS_MAX_AGE_MS = container.tokenService.getAccessTokenExpiresInSeconds() * 1000;
 const REFRESH_MAX_AGE_MS = env.JWT_REFRESH_EXPIRES_DAYS * 24 * 60 * 60 * 1000;
@@ -36,142 +37,84 @@ function clearCookieOptions(): { path: string; domain?: string; httpOnly?: boole
   return o;
 }
 
-export async function register(
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-): Promise<void> {
-  try {
+class RegisterController extends BaseController {
+  protected async execute(req: AuthRequest, res: Response) {
     const { email, password, fullName, roleRequest } = req.body;
-    const result = await container.authService.register({
-      email,
-      password,
-      fullName,
-      roleRequest,
-    });
+    const result = await container.authService.register({ email, password, fullName, roleRequest });
     res.cookie(env.COOKIE_ACCESS_NAME, result.accessToken, cookieOptions(ACCESS_MAX_AGE_MS));
     res.cookie(env.COOKIE_REFRESH_NAME, result.refreshToken, cookieOptions(REFRESH_MAX_AGE_MS));
-    res.status(201).json({
-      success: true,
-      user: result.user,
-      accessToken: result.accessToken,
-    });
-  } catch (e) {
-    next(e);
+    res.status(201);
+    return { success: true, user: result.user, accessToken: result.accessToken };
   }
 }
+export const register = new RegisterController().handleRequest.bind(new RegisterController());
 
-export async function login(
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-): Promise<void> {
-  try {
+class LoginController extends BaseController {
+  protected async execute(req: AuthRequest, res: Response) {
     const result = await container.authService.login(req.body, req.ip);
     res.cookie(env.COOKIE_ACCESS_NAME, result.accessToken, cookieOptions(ACCESS_MAX_AGE_MS));
     res.cookie(env.COOKIE_REFRESH_NAME, result.refreshToken, cookieOptions(REFRESH_MAX_AGE_MS));
-    res.json({
-      success: true,
-      user: result.user,
-      accessToken: result.accessToken,
-    });
-  } catch (e) {
-    next(e);
+    return { success: true, user: result.user, accessToken: result.accessToken };
   }
 }
+export const login = new LoginController().handleRequest.bind(new LoginController());
 
-export async function refresh(
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-): Promise<void> {
-  try {
+class RefreshController extends BaseController {
+  protected async execute(req: AuthRequest, res: Response) {
     const token = getRefreshTokenFromReq(req);
-    if (!token) {
-      next(new AppError(400, "Refresh token required", "BAD_REQUEST"));
-      return;
-    }
+    if (!token) throw AppErrorFactory.validation("Refresh token required", { code: "BAD_REQUEST" });
     const result = await container.authService.refresh(token);
     res.cookie(env.COOKIE_ACCESS_NAME, result.accessToken, cookieOptions(ACCESS_MAX_AGE_MS));
     res.cookie(env.COOKIE_REFRESH_NAME, result.refreshToken, cookieOptions(REFRESH_MAX_AGE_MS));
-    res.json({
-      success: true,
-      user: result.user,
-      accessToken: result.accessToken,
-    });
-  } catch (e) {
-    next(e);
+    return { success: true, user: result.user, accessToken: result.accessToken };
   }
 }
+export const refresh = new RefreshController().handleRequest.bind(new RefreshController());
 
-export async function logout(
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-): Promise<void> {
-  try {
+class LogoutController extends BaseController {
+  protected async execute(req: AuthRequest, res: Response) {
     const token = getRefreshTokenFromReq(req);
     await container.authService.logout(token);
     const clearOpts = clearCookieOptions();
     res.clearCookie(env.COOKIE_ACCESS_NAME, clearOpts);
     res.clearCookie(env.COOKIE_REFRESH_NAME, clearOpts);
-    res.json({ success: true, message: "Logged out" });
-  } catch (e) {
-    next(e);
+    return { success: true, message: "Logged out" };
   }
 }
+export const logout = new LogoutController().handleRequest.bind(new LogoutController());
 
-export async function verifyEmail(
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-): Promise<void> {
-  try {
+class VerifyEmailController extends BaseController {
+  protected async execute(req: AuthRequest) {
     const { token } = req.body;
     const result = await container.authService.verifyEmail(token);
-    res.json({ success: true, user: result.user });
-  } catch (e) {
-    next(e);
+    return { success: true, user: result.user };
   }
 }
+export const verifyEmail = new VerifyEmailController().handleRequest.bind(new VerifyEmailController());
 
-export async function forgotPassword(
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-): Promise<void> {
-  try {
+class ForgotPasswordController extends BaseController {
+  protected async execute(req: AuthRequest) {
     const { email } = req.body;
     const result = await container.authService.forgotPassword(email);
-    res.json({ success: true, message: result.message });
-  } catch (e) {
-    next(e);
+    return { success: true, message: result.message };
   }
 }
+export const forgotPassword = new ForgotPasswordController().handleRequest.bind(new ForgotPasswordController());
 
-export async function resetPassword(
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-): Promise<void> {
-  try {
+class ResetPasswordController extends BaseController {
+  protected async execute(req: AuthRequest) {
     const { token, newPassword } = req.body;
     await container.authService.resetPassword(token, newPassword);
-    res.json({ success: true, message: "Password has been reset." });
-  } catch (e) {
-    next(e);
+    return { success: true, message: "Password has been reset." };
   }
 }
+export const resetPassword = new ResetPasswordController().handleRequest.bind(new ResetPasswordController());
 
-export async function me(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
-  try {
-    if (!req.user) {
-      next(new AppError(401, "Authentication required", "UNAUTHORIZED"));
-      return;
-    }
+class MeController extends BaseController {
+  protected async execute(req: AuthRequest) {
+    if (!req.user) throw AppErrorFactory.unauthorized("Authentication required");
     const user = await container.authService.me(req.user.id);
-    res.json({ success: true, user });
-  } catch (e) {
-    next(e);
+    return { success: true, user };
   }
 }
+export const me = new MeController().handleRequest.bind(new MeController());

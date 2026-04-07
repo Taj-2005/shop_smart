@@ -3,6 +3,7 @@ import type { IAuthNotificationSender } from "../interfaces/IAuthNotificationSen
 import type { IEmailService } from "../interfaces/IEmailService";
 import type { INotificationChannel } from "../interfaces/INotificationChannel";
 import type { AuthNotificationContext, AuthNotificationKind } from "../interfaces/INotificationKinds";
+
 const emailContent: Record<
   AuthNotificationKind,
   (ctx: AuthNotificationContext) => { subject: string; html: string }

@@ -1,7 +1,11 @@
-import { AppError } from "../../middleware/errorHandler";
+import { AppErrorFactory } from "../../factories/AppErrorFactory";
 import { OrderStatus } from "@prisma/client";
+import { EventBus } from "../../events/EventBus";
+import type { OrderStatusValue } from "../../events/events.types";
+import type { IDiscountStrategy } from "../../interfaces/IDiscountStrategy";
 import type { IOrderPricingStrategy, OrderLineInput } from "../../interfaces/IOrderPricingStrategy";
 import type { IOrderRepository } from "../../interfaces/IOrderRepository";
+import type { IShippingStrategy } from "../../interfaces/IShippingStrategy";
 
 function serializeOrder<T extends { subtotal: unknown; discount: unknown; shipping: unknown; total: unknown; items: { price: unknown }[] }>(order: T) {
   return {
@@ -17,17 +21,19 @@ function serializeOrder<T extends { subtotal: unknown; discount: unknown; shippi
 export class OrderService {
   constructor(
     private readonly pricing: IOrderPricingStrategy,
+    private readonly discount: IDiscountStrategy,
+    private readonly shipping: IShippingStrategy,
     private readonly orders: IOrderRepository
   ) {}
 
   async create(userId: string, input: { addressId?: string; items: { productId: string; quantity: number }[] }) {
     const { addressId, items } = input;
-    if (!items?.length) throw new AppError(400, "items required", "VALIDATION_ERROR");
+    if (!items?.length) throw AppErrorFactory.validation("items required");
     const productIds = items.map((i) => i.productId);
     const products = await this.orders.findActiveProductsByIds(productIds);
     const lineInputs: OrderLineInput[] = items.map((oi) => {
       const product = products.find((p) => p.id === oi.productId);
-      if (!product) throw new AppError(400, "Product not found: " + oi.productId, "VALIDATION_ERROR");
+      if (!product) throw AppErrorFactory.validation("Product not found: " + oi.productId);
       return {
         productId: product.id,
         quantity: oi.quantity,
@@ -35,19 +41,29 @@ export class OrderService {
       };
     });
     const breakdown = this.pricing.compute(lineInputs);
+    const discount = this.discount.amountOff(breakdown.subtotal);
+    const shipping = this.shipping.cost(breakdown.subtotal);
+    const total = Math.max(0, breakdown.subtotal - discount) + shipping;
     const order = await this.orders.createOrderWithItems({
       userId,
       addressId: addressId || null,
       status: OrderStatus.PENDING,
       subtotal: breakdown.subtotal,
-      discount: breakdown.discount,
-      shipping: breakdown.shipping,
-      total: breakdown.total,
+      discount,
+      shipping,
+      total,
       items: breakdown.lines.map((l) => ({
         productId: l.productId,
         quantity: l.quantity,
         price: l.price,
       })),
+    });
+    const created = order as { id: string };
+    EventBus.emit("OrderStatusChanged", {
+      orderId: created.id,
+      userId,
+      previousStatus: OrderStatus.PENDING as OrderStatusValue,
+      status: OrderStatus.PENDING as OrderStatusValue,
     });
     return serializeOrder(order as Parameters<typeof serializeOrder>[0]);
   }
@@ -65,13 +81,27 @@ export class OrderService {
 
   async updateStatus(orderId: string, status: OrderStatus) {
     if (!Object.values(OrderStatus).includes(status)) {
-      throw new AppError(400, "Invalid status", "VALIDATION_ERROR");
+      throw AppErrorFactory.validation("Invalid status");
     }
+    const existing = (await this.orders.findFirstByIdForAccess(orderId, {
+      userId: "",
+      isAdmin: true,
+    })) as { userId: string; status: OrderStatus; id: string } | null;
+
     const order = (await this.orders.updateOrderStatus(orderId, status)) as {
+      id: string;
+      userId: string;
+      status: OrderStatus;
       subtotal: unknown;
       total: unknown;
       items: unknown;
     };
+    EventBus.emit("OrderStatusChanged", {
+      orderId: order.id,
+      userId: order.userId,
+      previousStatus: (existing?.status ?? order.status) as OrderStatusValue,
+      status: order.status as OrderStatusValue,
+    });
     return { ...order, subtotal: Number(order.subtotal), total: Number(order.total) };
   }
 }

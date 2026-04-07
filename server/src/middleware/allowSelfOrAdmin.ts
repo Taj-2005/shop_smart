@@ -1,6 +1,6 @@
 import { Response, NextFunction } from "express";
 import { AuthRequest } from "./authenticate";
-import { AppError } from "./errorHandler";
+import { AppErrorFactory } from "../factories/AppErrorFactory";
 import { ADMIN_ROLES } from "../constants/roles";
 
 /**
@@ -11,12 +11,12 @@ import { ADMIN_ROLES } from "../constants/roles";
 export function allowSelfOrAdmin(paramName = "id") {
   return (req: AuthRequest, _res: Response, next: NextFunction): void => {
     if (!req.user) {
-      next(new AppError(401, "Authentication required", "UNAUTHORIZED"));
+      next(AppErrorFactory.unauthorized("Authentication required"));
       return;
     }
     const resourceId = req.params[paramName];
     if (!resourceId) {
-      next(new AppError(400, "Missing resource id", "VALIDATION_ERROR"));
+      next(AppErrorFactory.validation("Missing resource id"));
       return;
     }
     const isOwn = resourceId === req.user.id;
@@ -25,6 +25,6 @@ export function allowSelfOrAdmin(paramName = "id") {
       next();
       return;
     }
-    next(new AppError(403, "Forbidden", "FORBIDDEN"));
+    next(AppErrorFactory.unauthorized("Forbidden", { statusCode: 403, code: "FORBIDDEN" }));
   };
 }

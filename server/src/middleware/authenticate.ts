@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { env } from "../config/env";
-import { AppError } from "./errorHandler";
+import { AppErrorFactory } from "../factories/AppErrorFactory";
 import type { IAccessTokenVerifier } from "../interfaces/IAccessTokenVerifier";
 import type { IAuthenticatedUserLoader } from "../interfaces/IAuthenticatedUserLoader";
 
@@ -44,14 +44,14 @@ export async function authenticate(req: AuthRequest, _res: Response, next: NextF
   const { accessTokenVerifier: verifier, authenticatedUserLoader: loader } = requireAuthDeps();
   const token = getAccessToken(req);
   if (!token) {
-    next(new AppError(401, "Authentication required", "UNAUTHORIZED"));
+    next(AppErrorFactory.unauthorized("Authentication required"));
     return;
   }
   try {
     const payload = verifier.verifyAccessToken(token);
     const user = await loader.loadActiveUser(payload.sub);
     if (!user) {
-      next(new AppError(401, "User not found or inactive", "UNAUTHORIZED"));
+      next(AppErrorFactory.unauthorized("User not found or inactive"));
       return;
     }
     req.user = {
@@ -62,7 +62,7 @@ export async function authenticate(req: AuthRequest, _res: Response, next: NextF
     };
     next();
   } catch {
-    next(new AppError(401, "Invalid or expired token", "UNAUTHORIZED"));
+    next(AppErrorFactory.unauthorized("Invalid or expired token"));
   }
 }
 

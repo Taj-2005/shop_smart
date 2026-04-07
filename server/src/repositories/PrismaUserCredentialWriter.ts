@@ -4,6 +4,7 @@ import type { UserWithRole } from "../interfaces/IUserCredentialReader";
 
 export class PrismaUserCredentialWriter implements IUserCredentialWriter {
   constructor(private readonly prisma: PrismaClient) {}
+
   async createCustomer(data: {
     email: string;
     passwordHash: string;

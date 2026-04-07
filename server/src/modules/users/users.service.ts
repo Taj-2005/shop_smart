@@ -1,4 +1,4 @@
-import { AppError } from "../../middleware/errorHandler";
+import { AppErrorFactory } from "../../factories/AppErrorFactory";
 import type { IUserReader } from "../../interfaces/IUserReader";
 import type { IUserWriter } from "../../interfaces/IUserWriter";
 
@@ -14,7 +14,7 @@ export class UsersService {
 
   async getById(id: string) {
     const user = await this.readers.findUserProfileById(id);
-    if (!user) throw new AppError(404, "User not found", "NOT_FOUND");
+    if (!user) throw AppErrorFactory.notFound("User not found");
     return user;
   }
 

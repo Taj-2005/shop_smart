@@ -1,63 +1,56 @@
 import { env } from "../config/env";
-import type { IAccessTokenLifetime } from "../interfaces/IAccessTokenLifetime";
-import type { IAccessTokenVerifier } from "../interfaces/IAccessTokenVerifier";
-import type { IAuthNotificationSender } from "../interfaces/IAuthNotificationSender";
-import type { IAuthTokenProvider } from "../interfaces/IAuthTokenProvider";
-import type { INotificationChannel } from "../interfaces/INotificationChannel";
+import type { IDiscountStrategy } from "../interfaces/IDiscountStrategy";
 import type { IOrderPricingStrategy } from "../interfaces/IOrderPricingStrategy";
-import type { IRefreshTokenVerifier } from "../interfaces/IRefreshTokenVerifier";
-import type { ISessionTokenIssuer } from "../interfaces/ISessionTokenIssuer";
-import { EmailNotificationStrategy } from "./EmailNotificationStrategy";
-import { FreeShippingThresholdOrderPricingStrategy } from "./FreeShippingThresholdOrderPricingStrategy";
-import { jwtAuthProvider } from "./JwtAuthProvider";
-import { oauthJwtAuthProvider } from "./OAuthJwtAuthProvider";
-import { PercentageDiscountOrderPricingStrategy } from "./PercentageDiscountOrderPricingStrategy";
-import { PushNotificationStrategy } from "./PushNotificationStrategy";
-import { SmsNotificationStrategy } from "./SmsNotificationStrategy";
+import type { IShippingStrategy } from "../interfaces/IShippingStrategy";
+import { FixedDiscountStrategy } from "../strategies/discount/FixedDiscountStrategy";
+import { PercentDiscountStrategy } from "../strategies/discount/PercentDiscountStrategy";
+import { FlatRateShippingStrategy } from "../strategies/shipping/FlatRateShippingStrategy";
+import { FreeShippingStrategy } from "../strategies/shipping/FreeShippingStrategy";
+import { clampPercent0to100 } from "../utils/pricingMath";
 import { StandardOrderPricingStrategy } from "./StandardOrderPricingStrategy";
-import { NodemailerEmailService } from "./NodemailerEmailService";
 
-const authProviderFactories: Record<string, () => IAuthTokenProvider> = {
-  jwt: () => jwtAuthProvider,
-  oauth_jwt: () => oauthJwtAuthProvider,
+export type OrderCommerceStrategies = {
+  lines: IOrderPricingStrategy;
+  discount: IDiscountStrategy;
+  shipping: IShippingStrategy;
 };
 
-export function resolveAuthTokenProvider(): IAuthTokenProvider {
-  const key = env.AUTH_PROVIDER.toLowerCase();
-  const factory = authProviderFactories[key] ?? authProviderFactories.jwt;
-  return factory();
-}
+const zeroShipping = (): IShippingStrategy => new FlatRateShippingStrategy(0);
+const noPercentDiscount = (): IDiscountStrategy => new PercentDiscountStrategy(0);
 
-const authTokenProviderSingleton = resolveAuthTokenProvider();
-
-/** @deprecated Prefer granular exports (accessTokenVerifier, sessionTokenIssuer, …). */
-export const authProvider = authTokenProviderSingleton;
-
-export const accessTokenVerifier: IAccessTokenVerifier = authTokenProviderSingleton;
-
-export const accessTokenLifetime: IAccessTokenLifetime = authTokenProviderSingleton;
-
-export type AuthSessionTokens = ISessionTokenIssuer & IRefreshTokenVerifier & IAccessTokenLifetime;
-
-export const sessionTokenIssuer: AuthSessionTokens = authTokenProviderSingleton;
-const pricingFactories: Record<string, () => IOrderPricingStrategy> = {
-  standard: () => new StandardOrderPricingStrategy(),
-  percent_discount: () => new PercentageDiscountOrderPricingStrategy(),
-  free_shipping_threshold: () => new FreeShippingThresholdOrderPricingStrategy(),
+const commerceFactories: Record<string, () => OrderCommerceStrategies> = {
+  standard: () => ({
+    lines: new StandardOrderPricingStrategy(),
+    discount: noPercentDiscount(),
+    shipping: zeroShipping(),
+  }),
+  percent_discount: () => ({
+    lines: new StandardOrderPricingStrategy(),
+    discount: new PercentDiscountStrategy(clampPercent0to100(env.ORDER_DISCOUNT_PERCENT)),
+    shipping: zeroShipping(),
+  }),
+  free_shipping_threshold: () => ({
+    lines: new StandardOrderPricingStrategy(),
+    discount: noPercentDiscount(),
+    shipping: new FreeShippingStrategy(env.ORDER_FREE_SHIPPING_THRESHOLD, env.ORDER_FLAT_SHIPPING),
+  }),
+  fixed_discount: () => ({
+    lines: new StandardOrderPricingStrategy(),
+    discount: new FixedDiscountStrategy(env.ORDER_FIXED_DISCOUNT),
+    shipping: zeroShipping(),
+  }),
 };
 
-export function resolveOrderPricingStrategy(): IOrderPricingStrategy {
+/**
+ * Line pricing + discount + shipping strategies for checkout (composition root picks one profile; no runtime if/else).
+ */
+export function resolveOrderCommerceStrategies(): OrderCommerceStrategies {
   const key = env.ORDER_PRICING_STRATEGY.toLowerCase();
-  const factory = pricingFactories[key] ?? pricingFactories.standard;
+  const factory = commerceFactories[key] ?? commerceFactories.standard;
   return factory();
 }
 
-export const orderPricingStrategy = resolveOrderPricingStrategy();
-
-export type AuthNotificationPipeline = IAuthNotificationSender & INotificationChannel;
-
-export const authNotificationStrategies: AuthNotificationPipeline[] = [
-  new EmailNotificationStrategy(new NodemailerEmailService()),
-  new SmsNotificationStrategy(),
-  new PushNotificationStrategy(),
-];
+/** @deprecated Use {@link resolveOrderCommerceStrategies} for discount/shipping composition. */
+export function resolveOrderPricingStrategy(): IOrderPricingStrategy {
+  return resolveOrderCommerceStrategies().lines;
+}
