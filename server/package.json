@@ -14,8 +14,8 @@
     "db:seed": "ts-node prisma/seed.ts",
     "db:studio": "prisma studio",
     "lint": "eslint src tests --max-warnings 0",
-    "test": "node --localstorage-file=./.jest-localstorage ./node_modules/jest/bin/jest.js --runInBand --forceExit",
-    "test:watch": "node --localstorage-file=./.jest-localstorage ./node_modules/jest/bin/jest.js --watch"
+    "test": "jest --runInBand --forceExit",
+    "test:watch": "jest --watch"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
