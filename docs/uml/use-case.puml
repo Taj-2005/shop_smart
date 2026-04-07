@@ -1,0 +1,139 @@
+@startuml ShopSmart_UseCaseDiagram
+title ShopSmart - Use Case Diagram
+
+skinparam actorStyle awesome
+skinparam packageStyle rectangle
+skinparam usecase {
+  BackgroundColor #E8F9F7
+  BorderColor #00C2B2
+  ArrowColor #006B63
+  ActorBorderColor #00C2B2
+  ActorBackgroundColor #E8F9F7
+}
+skinparam shadowing false
+skinparam roundcorner 10
+
+' ─── ACTORS ───
+actor "Guest" as Guest
+actor "Customer" as Customer
+actor "Admin" as Admin
+actor "Super Admin" as SuperAdmin
+actor "Email System" as Email
+
+Customer -|> Guest
+Admin    -|> Customer
+SuperAdmin -|> Admin
+
+' ─── PUBLIC ZONE ───
+rectangle "Public Zone" {
+  usecase "Browse Products"       as UC_Browse
+  usecase "View Product Details"  as UC_ViewProduct
+  usecase "Search and Filter"     as UC_Search
+  usecase "Register Account"      as UC_Register
+  usecase "Log In"                as UC_Login
+  usecase "Forgot Password"       as UC_ForgotPass
+}
+
+' ─── CUSTOMER ZONE ───
+rectangle "Customer Zone" {
+  usecase "Manage Cart"           as UC_Cart
+  usecase "Manage Wishlist"       as UC_Wishlist
+  usecase "Place Order"           as UC_PlaceOrder
+  usecase "Apply Coupon"          as UC_Coupon
+  usecase "Select Address"        as UC_SelectAddr
+  usecase "Track Orders"          as UC_TrackOrder
+  usecase "Write Review"          as UC_Review
+  usecase "Manage Profile"        as UC_Profile
+  usecase "Manage Addresses"      as UC_Addresses
+  usecase "Reset Password"        as UC_ResetPass
+  usecase "View Order History"    as UC_OrderHistory
+}
+
+' ─── ADMIN ZONE ───
+rectangle "Admin Zone" {
+  usecase "Manage Products CRUD"  as UC_Products
+  usecase "Manage Categories"     as UC_Categories
+  usecase "Manage Inventory"      as UC_Inventory
+  usecase "Manage Orders"         as UC_ManageOrders
+  usecase "Manage Coupons"        as UC_ManageCoupons
+  usecase "Moderate Reviews"      as UC_ModReviews
+  usecase "View Sales Reports"    as UC_Reports
+  usecase "View Customer List"    as UC_Customers
+  usecase "View Audit Logs"       as UC_AuditLogs
+  usecase "View Dashboard KPIs"   as UC_Dashboard
+}
+
+' ─── SUPER ADMIN ZONE ───
+rectangle "Super Admin Zone" {
+  usecase "Create and Delete Admins" as UC_AdminCRUD
+  usecase "Assign User Roles"        as UC_RBAC
+  usecase "System Configuration"     as UC_SysConfig
+  usecase "Manage Payment Gateways"  as UC_Payment
+  usecase "Manage Shipping"          as UC_Shipping
+  usecase "Toggle Feature Flags"     as UC_Flags
+  usecase "Full Analytics Dashboard" as UC_Analytics
+}
+
+' ─── EMAIL SYSTEM ───
+rectangle "Email System (External)" {
+  usecase "Send Email Verification"  as UC_EmailVerify
+  usecase "Send Password Reset Link" as UC_EmailReset
+  usecase "Send Order Confirmation"  as UC_EmailOrder
+}
+
+' ─── GUEST ASSOCIATIONS ───
+Guest --> UC_Browse
+Guest --> UC_ViewProduct
+Guest --> UC_Search
+Guest --> UC_Register
+Guest --> UC_Login
+Guest --> UC_ForgotPass
+
+' ─── CUSTOMER ASSOCIATIONS ───
+Customer --> UC_Cart
+Customer --> UC_Wishlist
+Customer --> UC_PlaceOrder
+Customer --> UC_TrackOrder
+Customer --> UC_Review
+Customer --> UC_Profile
+Customer --> UC_Addresses
+Customer --> UC_ResetPass
+Customer --> UC_OrderHistory
+
+' ─── ADMIN ASSOCIATIONS ───
+Admin --> UC_Products
+Admin --> UC_Categories
+Admin --> UC_Inventory
+Admin --> UC_ManageOrders
+Admin --> UC_ManageCoupons
+Admin --> UC_ModReviews
+Admin --> UC_Reports
+Admin --> UC_Customers
+Admin --> UC_AuditLogs
+Admin --> UC_Dashboard
+
+' ─── SUPER ADMIN ASSOCIATIONS ───
+SuperAdmin --> UC_AdminCRUD
+SuperAdmin --> UC_RBAC
+SuperAdmin --> UC_SysConfig
+SuperAdmin --> UC_Payment
+SuperAdmin --> UC_Shipping
+SuperAdmin --> UC_Flags
+SuperAdmin --> UC_Analytics
+
+' ─── EMAIL ASSOCIATIONS ───
+Email --> UC_EmailVerify
+Email --> UC_EmailReset
+Email --> UC_EmailOrder
+
+' ─── INCLUDE RELATIONS ───
+UC_PlaceOrder .> UC_Coupon      : <<include>>
+UC_PlaceOrder .> UC_SelectAddr  : <<include>>
+UC_PlaceOrder .> UC_EmailOrder  : <<include>>
+UC_Register   .> UC_EmailVerify : <<include>>
+UC_ForgotPass .> UC_EmailReset  : <<include>>
+
+' ─── EXTEND RELATIONS ───
+UC_Inventory .> UC_Products : <<extend>>
+
+@enduml
