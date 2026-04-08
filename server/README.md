@@ -21,6 +21,12 @@ npm run dev
 
 Server runs at `http://localhost:4000`. Health: `GET /api/health`.
 
+### Vercel and `/api-docs` (Swagger UI)
+
+If `/api-docs/` loads but the browser console shows **MIME type `text/html`** for `swagger-ui.css` / `.js`, the serverless bundle omitted **`swagger-ui-dist`** static files. `express.static` then falls through to the HTML handler, so those URLs return the Swagger page as HTML.
+
+This repo’s [`vercel.json`](./vercel.json) sets `includeFiles: "node_modules/swagger-ui-dist/**"` on the Node build so those assets ship with the function. Redeploy after pulling that change.
+
 ---
 
 ## Authentication
