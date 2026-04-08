@@ -3,219 +3,527 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ShopSmart — Architecture & CI/CD</title>
+  <meta name="description" content="ShopSmart system architecture, UML models, deployment, and CI/CD — aligned with the ShopSmart web app design language." />
+  <title>ShopSmart — Architecture &amp; system design</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/mermaid@9/dist/mermaid.min.js"></script>
   <style>
+    :root {
+      --color-charcoal: #222222;
+      --color-teal: #00c2b2;
+      --color-teal-dark: #00a396;
+      --color-white: #ffffff;
+      --color-ui-gray: #f5f7fa;
+      --text-primary: var(--color-charcoal);
+      --text-muted: rgba(34, 34, 34, 0.65);
+      --border-default: rgba(34, 34, 34, 0.12);
+      --radius: 0.75rem;
+      --radius-sm: 0.5rem;
+      --radius-lg: 1rem;
+      --shadow-card: 0 1px 3px rgba(34, 34, 34, 0.06), 0 4px 20px rgba(34, 34, 34, 0.04);
+      --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+      --font-heading: "Outfit", var(--font-sans);
+    }
+
     * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+    }
+
     body {
       margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      line-height: 1.6;
-      color: #1a1a1a;
-      background: #f8f9fa;
-      padding: 1rem 1.5rem 3rem;
+      font-family: var(--font-sans);
+      font-size: 1rem;
+      line-height: 1.65;
+      color: var(--text-primary);
+      background: var(--color-ui-gray);
+      -webkit-font-smoothing: antialiased;
     }
-    .container { max-width: 1000px; margin: 0 auto; }
-    .nav {
-      padding: 1rem 0;
-      margin-bottom: 1.5rem;
-      border-bottom: 1px solid #e2e8f0;
-    }
-    .nav a {
-      color: #0ea5e9;
+
+    .skip-link {
+      position: absolute;
+      left: -9999px;
+      top: 0;
+      z-index: 100;
+      padding: 0.75rem 1.25rem;
+      background: var(--color-teal);
+      color: var(--color-white);
+      font-weight: 600;
+      border-radius: var(--radius-sm);
       text-decoration: none;
-      font-weight: 500;
     }
-    .nav a:hover { text-decoration: underline; }
-    .hero { margin-bottom: 1.5rem; }
-    .hero h1 { font-size: 1.75rem; margin: 0 0 0.25rem; color: #0f172a; }
-    .hero .subtitle { color: #64748b; font-size: 1rem; margin: 0; }
+    .skip-link:focus {
+      left: 1rem;
+      top: 1rem;
+      outline: 2px solid var(--color-charcoal);
+      outline-offset: 2px;
+    }
+
+    .shell {
+      max-width: 72rem;
+      margin: 0 auto;
+      padding: 1.25rem 1.5rem 4rem;
+    }
+
+    /* Top bar — teal strip like brand */
+    .brand-bar {
+      height: 4px;
+      background: linear-gradient(90deg, var(--color-teal), var(--color-teal-dark));
+      margin: 0 0 1.25rem -1.5rem;
+      margin-left: calc(50% - 50vw);
+      margin-right: calc(50% - 50vw);
+      width: 100vw;
+    }
+
+    .top-nav {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding-bottom: 1.25rem;
+      margin-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border-default);
+    }
+    .top-nav a {
+      color: var(--color-teal-dark);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.9375rem;
+    }
+    .top-nav a:hover { text-decoration: underline; text-underline-offset: 3px; }
+    .top-nav .links { display: flex; flex-wrap: wrap; gap: 1rem 1.5rem; }
+
+    .hero {
+      margin-bottom: 2rem;
+    }
+    .hero h1 {
+      font-family: var(--font-heading);
+      font-size: clamp(1.75rem, 4vw, 2.25rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin: 0 0 0.5rem;
+      color: var(--text-primary);
+    }
+    .hero .subtitle {
+      margin: 0;
+      color: var(--text-muted);
+      font-size: 1.0625rem;
+      max-width: 42rem;
+    }
+    .hero-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.35rem 0.75rem;
+      background: var(--color-white);
+      border: 1px solid var(--border-default);
+      border-radius: 999px;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .hero-badge--teal {
+      background: rgba(0, 194, 178, 0.12);
+      border-color: rgba(0, 194, 178, 0.35);
+      color: var(--color-teal-dark);
+    }
+
+    .toc {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: rgba(245, 247, 250, 0.92);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius);
+      padding: 0.75rem 1rem;
+      margin-bottom: 1.5rem;
+      box-shadow: var(--shadow-card);
+    }
+    .toc-title {
+      font-family: var(--font-heading);
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      margin: 0 0 0.5rem;
+    }
+    .toc ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem 0.75rem;
+    }
+    .toc a {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--color-teal-dark);
+      text-decoration: none;
+      padding: 0.25rem 0.5rem;
+      border-radius: var(--radius-sm);
+    }
+    .toc a:hover { background: rgba(0, 194, 178, 0.1); }
+
     .section {
-      background: #fff;
-      border-radius: 8px;
-      border: 1px solid #e2e8f0;
-      padding: 1.25rem 1.5rem;
-      margin-bottom: 1rem;
+      background: var(--color-white);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-default);
+      padding: 1.5rem 1.75rem;
+      margin-bottom: 1.25rem;
+      box-shadow: var(--shadow-card);
     }
     .section h2 {
-      font-size: 1.1rem;
-      margin: 0 0 0.75rem;
-      color: #0f172a;
-      padding-bottom: 0.5rem;
-      border-bottom: 1px solid #e2e8f0;
+      font-family: var(--font-heading);
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin: 0 0 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 2px solid rgba(0, 194, 178, 0.25);
+      color: var(--text-primary);
     }
-    .section h3 { font-size: 1rem; margin: 1rem 0 0.5rem; color: #334155; }
-    .section p { margin: 0 0 0.75rem; color: #475569; font-size: 0.95rem; }
+    .section h3 {
+      font-family: var(--font-heading);
+      font-size: 1.05rem;
+      font-weight: 600;
+      margin: 1.25rem 0 0.5rem;
+      color: var(--text-primary);
+    }
+    .section p, .section li {
+      color: var(--text-muted);
+      font-size: 0.9375rem;
+    }
+    .section p { margin: 0 0 0.85rem; }
     .section p:last-child { margin-bottom: 0; }
+    .lead { font-size: 1rem; color: var(--text-primary); opacity: 0.9; }
+
     .mermaid-wrap {
-      background: #f1f5f9;
-      border-radius: 6px;
-      padding: 1rem;
+      background: var(--color-ui-gray);
+      border-radius: var(--radius);
+      padding: 1.25rem;
       margin: 1rem 0;
       overflow-x: auto;
-      border: 1px solid #e2e8f0;
+      border: 1px solid var(--border-default);
     }
     .mermaid-src { display: none; }
     .mermaid-out { display: flex; justify-content: center; }
-    .mermaid-out svg { max-width: 100%; }
-    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin: 0.75rem 0; }
-    th, td { border: 1px solid #e2e8f0; padding: 0.5rem 0.75rem; text-align: left; }
-    th { background: #f8fafc; font-weight: 600; color: #334155; }
-    code {
-      background: #f1f5f9;
-      padding: 0.15rem 0.4rem;
-      border-radius: 4px;
-      font-size: 0.85em;
-      border: 1px solid #e2e8f0;
+    .mermaid-out svg { max-width: 100%; height: auto; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+      margin: 0.75rem 0;
     }
-    ul { margin: 0.5rem 0; padding-left: 1.25rem; color: #475569; font-size: 0.95rem; }
-    ul li { margin-bottom: 0.35rem; }
+    th, td {
+      border: 1px solid var(--border-default);
+      padding: 0.65rem 0.85rem;
+      text-align: left;
+    }
+    th {
+      background: var(--color-ui-gray);
+      font-weight: 600;
+      color: var(--text-primary);
+      font-family: var(--font-heading);
+      font-size: 0.8125rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    td { color: var(--text-muted); }
+    code {
+      background: var(--color-ui-gray);
+      padding: 0.15rem 0.45rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.84em;
+      border: 1px solid var(--border-default);
+      color: var(--text-primary);
+    }
+
+    ul { margin: 0.5rem 0; padding-left: 1.25rem; }
+    ul li { margin-bottom: 0.4rem; }
+
+    pre.flow {
+      background: var(--color-charcoal);
+      color: #e8eaef;
+      padding: 1.25rem 1.5rem;
+      border-radius: var(--radius);
+      overflow-x: auto;
+      font-size: 0.8125rem;
+      line-height: 1.5;
+      margin: 1rem 0;
+      border: 1px solid var(--border-default);
+    }
+
+    .diagram-grid {
+      display: grid;
+      gap: 1.5rem;
+      margin-top: 1rem;
+    }
+    @media (min-width: 640px) {
+      .diagram-grid { grid-template-columns: 1fr; }
+    }
+
+    figure.diagram-card {
+      margin: 0;
+      padding: 0;
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      background: var(--color-ui-gray);
+    }
+    figure.diagram-card img {
+      display: block;
+      width: 100%;
+      height: auto;
+      vertical-align: middle;
+      background: var(--color-white);
+    }
+    figure.diagram-card figcaption {
+      padding: 1rem 1.25rem;
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      border-top: 1px solid var(--border-default);
+      background: var(--color-white);
+    }
+    figure.diagram-card figcaption strong {
+      display: block;
+      font-family: var(--font-heading);
+      font-size: 0.9375rem;
+      color: var(--text-primary);
+      margin-bottom: 0.35rem;
+    }
+
+    .workflow-card {
+      background: var(--color-ui-gray);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius);
+      padding: 1rem 1.15rem;
+      margin-bottom: 0.65rem;
+      font-size: 0.9rem;
+    }
+    .workflow-card strong { color: var(--text-primary); }
+    .workflow-card .file {
+      color: var(--text-muted);
+      font-family: ui-monospace, monospace;
+      font-size: 0.85em;
+    }
+    .workflow-card .desc { color: var(--text-muted); margin-top: 0.4rem; line-height: 1.55; }
+
     .badge {
       display: inline-block;
-      font-size: 0.7rem;
-      font-weight: 600;
+      font-size: 0.65rem;
+      font-weight: 700;
       padding: 0.2rem 0.5rem;
       border-radius: 4px;
       text-transform: uppercase;
-      margin-left: 0.5rem;
+      letter-spacing: 0.04em;
+      margin-left: 0.45rem;
+      vertical-align: middle;
     }
-    .badge-build { background: #d1fae5; color: #047857; }
-    .badge-deploy { background: #ccfbf1; color: #0f766e; }
-    .badge-test { background: #e2e8f0; color: #475569; }
-    .workflow-card {
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 6px;
-      padding: 0.75rem 1rem;
-      margin-bottom: 0.5rem;
-      font-size: 0.9rem;
+    .badge-build { background: rgba(0, 194, 178, 0.2); color: var(--color-teal-dark); }
+    .badge-deploy { background: rgba(0, 163, 150, 0.2); color: #0d5c54; }
+    .badge-test { background: var(--color-ui-gray); color: var(--text-muted); border: 1px solid var(--border-default); }
+
+    .footer-nav {
+      margin-top: 2rem;
+      padding-top: 1.25rem;
+      border-top: 1px solid var(--border-default);
     }
-    .workflow-card strong { color: #0f172a; }
-    .workflow-card .file { color: #64748b; font-family: ui-monospace, monospace; font-size: 0.85em; }
-    .workflow-card .desc { color: #475569; margin-top: 0.35rem; line-height: 1.5; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <nav class="nav">
+  <a class="skip-link" href="#main">Skip to main content</a>
+  <div class="brand-bar" aria-hidden="true"></div>
+  <div class="shell">
+    <nav class="top-nav" aria-label="Architecture page links">
       <a href="/api-docs/">← API docs (Swagger)</a>
+      <div class="links">
+        <a href="https://shopsmart.taj.works/" target="_blank" rel="noopener noreferrer">Frontend (shopsmart.taj.works)</a>
+        <a href="https://shopsmart-swagger.taj.works/api-docs" target="_blank" rel="noopener noreferrer">Swagger (taj.works)</a>
+      </div>
     </nav>
+
     <header class="hero">
-      <h1>ShopSmart — Architecture & CI/CD</h1>
-      <p class="subtitle">System design, deployment topology, and GitHub Actions workflows</p>
+      <h1>ShopSmart — Architecture &amp; system design</h1>
+      <p class="subtitle">Monorepo eCommerce platform: Next.js (App Router) frontend, Express REST API, Prisma &amp; PostgreSQL. This page mirrors the README and embeds exported UML from <code>docs/uml/</code>, styled like the ShopSmart storefront (teal accent, Jakarta + Outfit).</p>
+      <div class="hero-badges">
+        <span class="hero-badge hero-badge--teal">Stateless &amp; horizontally scalable</span>
+        <span class="hero-badge">Cross-origin API + Bearer JWT</span>
+        <span class="hero-badge">OpenAPI / Swagger</span>
+      </div>
     </header>
 
-    <section class="section">
-      <h2>System overview</h2>
-      <p>ShopSmart is a monorepo eCommerce platform with a Next.js 16 frontend and an Express.js REST API. Authentication is cookie-based (httpOnly); protected routes enforce RBAC via middleware.</p>
-      <div class="mermaid-wrap">
-        <div class="mermaid-src">flowchart LR
-  subgraph Client[Frontend]
-    A[Next.js 16]
-    B[React 19 Tailwind]
+    <nav class="toc" aria-label="On this page">
+      <p class="toc-title">On this page</p>
+      <ul>
+        <li><a href="#live">Live deployments</a></li>
+        <li><a href="#overview">System overview</a></li>
+        <li><a href="#flow">Request flow</a></li>
+        <li><a href="#layers">Backend layers</a></li>
+        <li><a href="#uml">UML diagrams</a></li>
+        <li><a href="#rbac">RBAC</a></li>
+        <li><a href="#auth-client">Client auth</a></li>
+        <li><a href="#patterns">Design patterns</a></li>
+        <li><a href="#solid">SOLID</a></li>
+        <li><a href="#cicd">CI/CD</a></li>
+        <li><a href="#stack">Tech stack</a></li>
+      </ul>
+    </nav>
+
+    <main id="main">
+      <section class="section" id="live">
+        <h2>Live deployments</h2>
+        <p class="lead">Production hosts (configure <code>NEXT_PUBLIC_API_URL</code> and <code>FRONTEND_URL</code> accordingly).</p>
+        <table>
+          <thead>
+            <tr><th>Service</th><th>URL</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Frontend</td><td><a href="https://shopsmart.taj.works/" target="_blank" rel="noopener">shopsmart.taj.works</a></td></tr>
+            <tr><td>Backend API</td><td><a href="https://shopsmart-server.taj.works/" target="_blank" rel="noopener">shopsmart-server.taj.works</a></td></tr>
+            <tr><td>Swagger</td><td><a href="https://shopsmart-swagger.taj.works/api-docs" target="_blank" rel="noopener">shopsmart-swagger.taj.works/api-docs</a></td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="section" id="overview">
+        <h2>System overview</h2>
+        <p>The browser loads the Next.js app from the <strong>frontend origin</strong> and calls the <strong>API origin</strong> with JSON over HTTPS. JWT access tokens are stored in <strong>localStorage</strong> and sent as <code>Authorization: Bearer</code>; refresh uses <code>POST /api/auth/refresh</code> with a JSON body.</p>
+        <div class="mermaid-wrap">
+          <div class="mermaid-src">flowchart LR
+  subgraph FE[Frontend origin]
+    N[Next.js App Router]
+    R[React + Tailwind]
   end
-  subgraph API[Backend API]
-    C[Express]
-    D[Prisma ORM]
+  subgraph API[API origin]
+    E[Express /api]
+    P[Prisma ORM]
   end
   subgraph Data[Data]
-    E[(PostgreSQL)]
+    PG[(PostgreSQL)]
   end
-  A --> B
-  C --> D
-  Client -->|HTTPS withCredentials| API
-  D --> E</div>
-        <div class="mermaid-out"></div>
-      </div>
-    </section>
+  B[Browser Axios] --> N
+  B -->|HTTPS Bearer + CORS| E
+  N --> R
+  E --> P
+  P --> PG</div>
+          <div class="mermaid-out"></div>
+        </div>
+      </section>
 
-    <section class="section">
-      <h2>Deployment architecture</h2>
-      <p>Production traffic flows from the browser to the Next.js app on Vercel, then to the Express API on Render; the API uses a PostgreSQL database.</p>
-      <div class="mermaid-wrap">
-        <div class="mermaid-src">flowchart TB
-  subgraph Users[Users]
-    U[Browser]
-  end
-  subgraph Frontend[Frontend Vercel]
-    V[ShopSmart Web]
-  end
-  subgraph Backend[Backend Render]
-    R[Express API]
-  end
-  subgraph DB[Database]
-    M[(PostgreSQL)]
-  end
-  U -->|HTTPS| V
-  V -->|api and cookies| R
-  R --> M</div>
-        <div class="mermaid-out"></div>
-      </div>
-    </section>
+      <section class="section" id="flow">
+        <h2>High-level request flow</h2>
+        <p>From the project README — backend pipeline after the HTTP call reaches Express.</p>
+        <pre class="flow">Browser / Next.js client
+        │
+        │  Axios — Authorization: Bearer &lt;access&gt;
+        ▼
+   Express Server  (/api)
+        │
+        ├── authenticate middleware  (JWT Bearer)
+        ├── authorize middleware     (RBAC)
+        │
+        ▼
+   Route → Controller → Service → Repository → PostgreSQL (Prisma)
+        │
+        └── Domain events (EventBus → observers)</pre>
+      </section>
 
-    <section class="section">
-      <h2>Monorepo structure</h2>
-      <p>Single repository containing client, server, and e2e packages with clear boundaries.</p>
-      <div class="mermaid-wrap">
-        <div class="mermaid-src">flowchart TB
-  subgraph Client[client]
-    C1[app admin shop cart]
-    C2[api components context]
-    C3[lib middleware]
-  end
-  subgraph Server[server]
-    S1[prisma schema migrations]
-    S2[src app server config]
-    S3[modules auth products orders]
-    S4[middleware routes utils]
-  end
-  subgraph E2E[e2e]
-    E1[Playwright specs]
-  end</div>
-        <div class="mermaid-out"></div>
-      </div>
-    </section>
+      <section class="section" id="layers">
+        <h2>Backend layers</h2>
+        <table>
+          <thead>
+            <tr><th>Layer</th><th>Responsibility</th><th>Example</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Routes</td><td>Express wiring + middleware</td><td><code>auth.routes.ts</code></td></tr>
+            <tr><td>Controllers</td><td>HTTP orchestration, status codes</td><td><code>auth.controller.ts</code></td></tr>
+            <tr><td>Services</td><td>Domain / business logic</td><td><code>auth.service.ts</code></td></tr>
+            <tr><td>Repositories</td><td>Persistence behind interfaces</td><td><code>PrismaOrderRepository.ts</code></td></tr>
+            <tr><td>Middleware</td><td>Auth, RBAC, validation, errors</td><td><code>authenticate.ts</code>, <code>authorize.ts</code></td></tr>
+          </tbody>
+        </table>
+        <h3>Composition root</h3>
+        <p>Concrete implementations are wired in <code>server/src/container.ts</code> via <code>ServiceFactory</code>: token service (JWT vs OAuth), email strategies (Nodemailer vs SendGrid), order pricing profiles, etc.</p>
+      </section>
 
-    <section class="section">
-      <h2>Request lifecycle (server)</h2>
-      <p>Each API request passes through middleware before reaching the controller.</p>
-      <div class="mermaid-wrap">
-        <div class="mermaid-src">sequenceDiagram
-  participant Req as Request
-  participant CP as cookieParser
-  participant CORS as cors
-  participant Auth as authenticate
-  participant Role as requireAdmin or requireSuperAdmin
-  participant Ctrl as Controller
-  Req->>CP: Populate req.cookies
-  CP->>CORS: Validate origin credentials
-  CORS->>Auth: Read accessToken
-  Auth->>Role: Enforce role if admin routes
-  Role->>Ctrl: Business logic
-  Ctrl-->>Req: JSON response</div>
-        <div class="mermaid-out"></div>
-      </div>
-    </section>
+      <section class="section" id="uml">
+        <h2>UML diagrams</h2>
+        <p class="lead">Rendered from PlantUML sources under <code>docs/uml/puml/</code>. Files below are served from <code>/uml/*.png</code> on this API host.</p>
+        <div class="diagram-grid">
+          <figure class="diagram-card" id="uml-deployment">
+            <img src="/uml/deployment.png" width="1600" height="900" loading="lazy" alt="UML deployment diagram: ShopSmart production topology and scaling" />
+            <figcaption><strong>Deployment</strong>Production topology (taj.works origins), stateless tiers, PostgreSQL, optional object storage, and cross-origin auth notes.</figcaption>
+          </figure>
+          <figure class="diagram-card" id="uml-component">
+            <img src="/uml/component-system-architecture.png" width="1600" height="900" loading="lazy" alt="UML component diagram: ShopSmart system components" />
+            <figcaption><strong>Component &amp; system architecture</strong>Browser, Next.js host, Express API pipeline, Prisma, PostgreSQL, and external email.</figcaption>
+          </figure>
+          <figure class="diagram-card" id="uml-package">
+            <img src="/uml/package-server-structure.png" width="1600" height="900" loading="lazy" alt="UML package diagram: server structure" />
+            <figcaption><strong>Package structure (server)</strong>Logical packages and dependencies in the Express codebase.</figcaption>
+          </figure>
+          <figure class="diagram-card" id="uml-class">
+            <img src="/uml/class-backend-services.png" width="1600" height="900" loading="lazy" alt="UML class diagram: backend services" />
+            <figcaption><strong>Class diagram — backend services</strong>Key service-layer types and relationships.</figcaption>
+          </figure>
+          <figure class="diagram-card" id="uml-use-case">
+            <img src="/uml/use-case-overview.png" width="1600" height="900" loading="lazy" alt="UML use case overview" />
+            <figcaption><strong>Use case overview</strong>Actors and major use cases for the platform.</figcaption>
+          </figure>
+          <figure class="diagram-card" id="uml-activity-checkout">
+            <img src="/uml/activity-checkout.png" width="1600" height="900" loading="lazy" alt="UML activity diagram: checkout" />
+            <figcaption><strong>Activity — checkout</strong>Checkout flow from cart to order confirmation.</figcaption>
+          </figure>
+          <figure class="diagram-card" id="uml-state-order">
+            <img src="/uml/state-order-lifecycle.png" width="1600" height="900" loading="lazy" alt="UML state diagram: order lifecycle" />
+            <figcaption><strong>State machine — order lifecycle</strong>Order status transitions.</figcaption>
+          </figure>
+          <figure class="diagram-card" id="uml-seq-login">
+            <img src="/uml/sequence-login-refresh.png" width="1600" height="900" loading="lazy" alt="UML sequence diagram: login and refresh" />
+            <figcaption><strong>Sequence — login &amp; refresh</strong>Authentication and token refresh interactions (align with current API contract).</figcaption>
+          </figure>
+          <figure class="diagram-card" id="uml-seq-checkout">
+            <img src="/uml/sequence-checkout.png" width="1600" height="900" loading="lazy" alt="UML sequence diagram: checkout" />
+            <figcaption><strong>Sequence — checkout</strong>Messages between client and API during checkout.</figcaption>
+          </figure>
+          <figure class="diagram-card" id="uml-seq-admin">
+            <img src="/uml/sequence-admin-order-status.png" width="1600" height="900" loading="lazy" alt="UML sequence diagram: admin order status" />
+            <figcaption><strong>Sequence — admin order status</strong>Admin updating order status with RBAC.</figcaption>
+          </figure>
+        </div>
+      </section>
 
-    <section class="section">
-      <h2>Role-based access (RBAC)</h2>
-      <div class="mermaid-wrap">
-        <div class="mermaid-src">flowchart LR
+      <section class="section" id="rbac">
+        <h2>Role-based access (RBAC)</h2>
+        <div class="mermaid-wrap">
+          <div class="mermaid-src">flowchart LR
   subgraph Roles[Roles]
     C[Customer]
     A[Admin]
     SA[Super Admin]
   end
-  subgraph Public[Public routes]
+  subgraph Public[Public]
     P[health auth products categories]
   end
-  subgraph User[Authenticated routes]
+  subgraph User[Authenticated]
     U[user cart orders]
   end
-  subgraph AdminOnly[Admin routes]
-    AD[admin users]
+  subgraph AdminOnly[Admin]
+    AD[admin]
   end
-  subgraph SuperOnly[Super Admin routes]
+  subgraph SuperOnly[Super Admin]
     SO[super-admin]
   end
   C --> Public
@@ -227,149 +535,182 @@
   SA --> User
   SA --> AdminOnly
   SA --> SuperOnly</div>
-        <div class="mermaid-out"></div>
-      </div>
-      <h3>Route access matrix</h3>
-      <table>
-        <thead>
-          <tr><th>Route prefix</th><th>Access</th></tr>
-        </thead>
-        <tbody>
-          <tr><td><code>/api/health</code>, <code>/api/auth/*</code>, <code>/api/products</code>, <code>/api/categories</code></td><td>Public</td></tr>
-          <tr><td><code>/api/user/*</code>, <code>/api/cart/*</code>, <code>/api/orders</code></td><td>Any authenticated user</td></tr>
-          <tr><td><code>/api/users</code></td><td>Self, Admin, or Super Admin</td></tr>
-          <tr><td><code>/api/admin/*</code></td><td>Admin or Super Admin</td></tr>
-          <tr><td><code>/api/super-admin/*</code></td><td>Super Admin only</td></tr>
-        </tbody>
-      </table>
-    </section>
+          <div class="mermaid-out"></div>
+        </div>
+        <h3>Route access matrix</h3>
+        <table>
+          <thead>
+            <tr><th>Route prefix</th><th>Access</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>/api/health</code>, <code>/api/auth/*</code>, <code>/api/products</code>, <code>/api/categories</code></td><td>Public</td></tr>
+            <tr><td><code>/api/user/*</code>, <code>/api/cart/*</code>, <code>/api/orders</code></td><td>Authenticated user</td></tr>
+            <tr><td><code>/api/users</code></td><td>Self, Admin, or Super Admin</td></tr>
+            <tr><td><code>/api/admin/*</code></td><td>Admin or Super Admin</td></tr>
+            <tr><td><code>/api/super-admin/*</code></td><td>Super Admin only</td></tr>
+          </tbody>
+        </table>
+      </section>
 
-    <section class="section">
-      <h2>Client-side auth flow</h2>
-      <div class="mermaid-wrap">
-        <div class="mermaid-src">sequenceDiagram
-  participant App as Next.js App
+      <section class="section" id="auth-client">
+        <h2>Client-side auth</h2>
+        <p>Tokens live in <strong>localStorage</strong> (namespaced keys). Axios attaches <code>Authorization: Bearer</code>; on <strong>401</strong> the client calls <code>POST /api/auth/refresh</code> with <code>{ refreshToken }</code>, persists the new session, and retries once.</p>
+        <div class="mermaid-wrap">
+          <div class="mermaid-src">sequenceDiagram
+  participant SPA as Next.js client
   participant API as Express API
   participant User as User
-  User->>App: Request withCredentials
-  App->>API: GET or POST with cookies
+  User->>SPA: Action
+  SPA->>API: Request + Bearer access
   alt 200 OK
-    API-->>App: Response and Set-Cookie
-    App-->>User: Render
-  else 401 Unauthorized
-    API-->>App: 401
-    App->>API: POST auth refresh with cookie
+    API-->>SPA: JSON
+    SPA-->>User: UI update
+  else 401
+    API-->>SPA: 401
+    SPA->>API: POST /auth/refresh + body refreshToken
     alt Refresh OK
-      API-->>App: New tokens
-      App->>API: Retry request
+      API-->>SPA: New access + refresh + user
+      SPA->>SPA: persist localStorage
+      SPA->>API: Retry original request
     else Refresh fail
-      App-->>User: Redirect to login
+      SPA->>SPA: clear session
+      SPA-->>User: Redirect login
     end
   end</div>
-        <div class="mermaid-out"></div>
-      </div>
-      <ul>
-        <li>All API calls use <code>withCredentials: true</code> (Axios) or <code>credentials: "include"</code> (fetch).</li>
-        <li>On <strong>401</strong>, the interceptor calls <code>POST /api/auth/refresh</code> and retries once; if refresh fails, redirect to <code>/login</code>.</li>
-        <li>Route protection uses <code>ProtectedRoute</code> and auth context in layouts.</li>
-      </ul>
-    </section>
+          <div class="mermaid-out"></div>
+        </div>
+        <ul>
+          <li><code>ProtectedRoute</code>, <code>AdminRoute</code>, and <code>SuperAdminRoute</code> gate pages using auth context.</li>
+          <li>API enforces <code>FRONTEND_URL</code> for CORS.</li>
+        </ul>
+      </section>
 
-    <section class="section">
-      <h2>CI/CD workflows (ShopSmart)</h2>
-      <p>GitHub Actions workflows that build, test, and deploy ShopSmart. Triggered on push or PR to <code>main</code> or <code>develop</code> when <code>shopsmart/**</code> or the workflow file changes.</p>
-      <div class="mermaid-wrap">
-        <div class="mermaid-src">flowchart TB
+      <section class="section" id="patterns">
+        <h2>Design patterns</h2>
+        <table>
+          <thead>
+            <tr><th>Pattern</th><th>Implementation</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Repository</td><td><code>I*Repository</code> + <code>Prisma*Repository</code></td></tr>
+            <tr><td>Strategy</td><td>Token, email, pricing, shipping, discount strategies</td></tr>
+            <tr><td>Factory</td><td><code>ServiceFactory</code>, <code>ApiResponseFactory</code>, <code>AppErrorFactory</code></td></tr>
+            <tr><td>Template method</td><td><code>BaseController.handleRequest()</code></td></tr>
+            <tr><td>Observer</td><td><code>EventBus</code> + audit / notification observers</td></tr>
+            <tr><td>Command</td><td><code>UpdateOrderStatusCommand</code></td></tr>
+            <tr><td>Adapter</td><td>Order, product, user adapters</td></tr>
+            <tr><td>Middleware</td><td>Express pipeline: authenticate → authorize → validate</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="section" id="solid">
+        <h2>SOLID (summary)</h2>
+        <ul>
+          <li><strong>S</strong> — Focused services, repositories, and middleware.</li>
+          <li><strong>O</strong> — New pricing profiles and notification channels via extension points.</li>
+          <li><strong>L</strong> — Controllers substitutable through <code>BaseController</code>.</li>
+          <li><strong>I</strong> — Small interfaces (e.g. reader vs writer splits).</li>
+          <li><strong>D</strong> — High-level modules depend on abstractions (<code>ITokenService</code>, etc.).</li>
+        </ul>
+      </section>
+
+      <section class="section" id="cicd">
+        <h2>CI/CD (GitHub Actions)</h2>
+        <p>Typical monorepo automation: build, test, and optional deploy when <code>client/</code>, <code>server/</code>, <code>e2e/</code>, or workflow files change (exact paths depend on your repo’s workflow filters).</p>
+        <div class="mermaid-wrap">
+          <div class="mermaid-src">flowchart TB
   subgraph Triggers[Triggers]
     P[Push or PR]
-    P2[paths shopsmart or workflow]
+    P2[Path filters]
   end
-  subgraph Build[Build and Test]
-    B1[build.yml]
-    B2[unit-tests.yml]
-    B3[integration.yml]
-    B4[integration-tests.yml]
-    B5[e2e-tests.yml]
+  subgraph Build[Build &amp; test]
+    B1[Server build]
+    B2[Unit tests]
+    B3[Integration]
+    B4[E2E Playwright]
   end
   subgraph Deploy[Deploy]
-    D1[deploy_shopsmart_server_to_EC2.yml]
+    D1[EC2 / host of choice]
   end
   P --> P2
   P2 --> B1
   P2 --> B2
   P2 --> B3
   P2 --> B4
-  P2 --> B5
   P2 --> D1</div>
-        <div class="mermaid-out"></div>
-      </div>
-      <h3>Build and test workflows</h3>
-      <div class="workflow-card">
-        <strong>Server Build</strong> <span class="badge badge-build">Build</span><br />
-        <span class="file">build.yml</span>
-        <p class="desc">Trigger: Push to <code>main</code> or manual. Runs <code>npm install</code> and <code>npm run build</code> in <code>shopsmart/server</code>. Validates backend compiles.</p>
-      </div>
-      <div class="workflow-card">
-        <strong>Unit tests</strong> <span class="badge badge-test">Test</span><br />
-        <span class="file">unit-tests.yml</span>
-        <p class="desc">Trigger: Push/PR to <code>main</code> or <code>develop</code> when <code>shopsmart/**</code> changes. Runs server unit tests (Jest, exclude integration) and client unit tests in parallel. Uses <code>DATABASE_URL</code>, JWT, and repo variables.</p>
-      </div>
-      <div class="workflow-card">
-        <strong>Integration</strong> <span class="badge badge-test">Test</span><br />
-        <span class="file">integration.yml</span>
-        <p class="desc">Trigger: Push/PR to <code>main</code> or manual. Single job: lint, test, build in <code>shopsmart/server</code>. Matrix: Node 18, 20, 22.</p>
-      </div>
-      <div class="workflow-card">
-        <strong>Integration tests</strong> <span class="badge badge-test">Test</span><br />
-        <span class="file">integration-tests.yml</span>
-        <p class="desc">Trigger: Push/PR to <code>main</code> or <code>develop</code> when <code>shopsmart/**</code> changes. Runs server integration tests only with real DB (Prisma generate and db push).</p>
-      </div>
-      <div class="workflow-card">
-        <strong>E2E tests</strong> <span class="badge badge-test">Test</span><br />
-        <span class="file">e2e-tests.yml</span>
-        <p class="desc">Trigger: Push/PR to <code>main</code> or <code>develop</code> when <code>shopsmart/**</code> changes. Builds server and client, starts both locally, runs Playwright E2E from <code>shopsmart/e2e</code> against the running app.</p>
-      </div>
-      <h3>Deploy workflow (ShopSmart)</h3>
-      <div class="workflow-card">
-        <strong>Deploy ShopSmart Server to EC2</strong> <span class="badge badge-deploy">Deploy</span><br />
-        <span class="file">deploy_shopsmart_server_to_EC2.yml</span>
-        <p class="desc"><strong>On PR:</strong> Build-only check. <strong>On push to main</strong> (when <code>shopsmart/server/**</code> or workflow changes): SSH to EC2, clone/update repo, copy <code>.env</code> from secret <code>SHOPSMART_SERVER_ENV</code>, run <code>npm ci</code>, Prisma migrate, build, start or restart API with pm2 under <code>SHOPSMART_DEPLOY_PATH</code> (e.g. <code>/opt/shopsmart</code>).</p>
-      </div>
-      <p style="margin-top: 1rem; font-size: 0.9rem; color: #64748b;">Frontend is deployed separately (e.g. Vercel). Other repo workflows: <code>deploy_to_GitHub_pages.yml</code>, <code>deploy_to_EC2.yml</code>.</p>
-    </section>
+          <div class="mermaid-out"></div>
+        </div>
+        <h3>Example workflow responsibilities</h3>
+        <div class="workflow-card">
+          <strong>Server build</strong> <span class="badge badge-build">Build</span><br />
+          <span class="file">build.yml</span>
+          <p class="desc">Compile TypeScript; validate production bundle.</p>
+        </div>
+        <div class="workflow-card">
+          <strong>Unit tests</strong> <span class="badge badge-test">Test</span><br />
+          <span class="file">unit-tests.yml</span>
+          <p class="desc">Jest for server and client in parallel where configured.</p>
+        </div>
+        <div class="workflow-card">
+          <strong>Integration tests</strong> <span class="badge badge-test">Test</span><br />
+          <span class="file">integration-tests.yml</span>
+          <p class="desc">API tests with database (Prisma migrate / push as needed).</p>
+        </div>
+        <div class="workflow-card">
+          <strong>E2E</strong> <span class="badge badge-test">Test</span><br />
+          <span class="file">e2e-tests.yml</span>
+          <p class="desc">Build and run app locally or in CI; Playwright against <code>e2e/specs</code>.</p>
+        </div>
+        <div class="workflow-card">
+          <strong>Deploy API</strong> <span class="badge badge-deploy">Deploy</span><br />
+          <span class="file">deploy_shopsmart_server_to_EC2.yml</span> <em>(example)</em>
+          <p class="desc">SSH deploy, env from secrets, <code>npm ci</code>, Prisma migrate, process manager.</p>
+        </div>
+      </section>
 
-    <section class="section">
-      <h2>Tech stack</h2>
-      <table>
-        <thead>
-          <tr><th>Layer</th><th>Technologies</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>Frontend</td><td>Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4, Axios, Framer Motion, Recharts</td></tr>
-          <tr><td>Backend</td><td>Node.js, Express, TypeScript, Prisma, PostgreSQL, JWT, bcryptjs, cookie-parser, express-validator, Swagger (OpenAPI 3), Helmet, CORS</td></tr>
-          <tr><td>E2E</td><td>Playwright</td></tr>
-          <tr><td>CI/CD</td><td>GitHub Actions (build, unit, integration, E2E, deploy to EC2)</td></tr>
-        </tbody>
-      </table>
-    </section>
+      <section class="section" id="stack">
+        <h2>Tech stack</h2>
+        <table>
+          <thead>
+            <tr><th>Layer</th><th>Technologies</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Frontend</td><td>Next.js (App Router), React, TypeScript, Tailwind CSS, Axios, Framer Motion, Recharts</td></tr>
+            <tr><td>Backend</td><td>Node.js, Express, TypeScript, Prisma, PostgreSQL, JWT, bcryptjs, express-validator, Swagger (OpenAPI 3), Helmet, CORS</td></tr>
+            <tr><td>E2E</td><td>Playwright</td></tr>
+            <tr><td>Docs / modelling</td><td>PlantUML (<code>docs/uml</code>), Mermaid (this page)</td></tr>
+          </tbody>
+        </table>
+      </section>
+    </main>
 
-    <nav class="nav" style="margin-top: 1.5rem; padding-top: 1rem;">
+    <nav class="footer-nav top-nav" aria-label="Footer navigation">
       <a href="/api-docs/">← Back to API docs (Swagger)</a>
     </nav>
   </div>
 
   <script>
-    window.addEventListener("load", function() {
+    window.addEventListener("load", function () {
       if (typeof mermaid === "undefined") {
-        document.querySelectorAll(".mermaid-out").forEach(function(el) {
-          el.innerHTML = "<p style='color:#b91c1c'>Mermaid failed to load. Check the browser console.</p>";
+        document.querySelectorAll(".mermaid-out").forEach(function (el) {
+          el.innerHTML = "<p style='color:#b91c1c;font-size:0.9rem'>Mermaid failed to load.</p>";
         });
         return;
       }
       mermaid.initialize({
         startOnLoad: false,
-        theme: "default",
-        flowchart: { useMaxWidth: true },
+        theme: "base",
+        themeVariables: {
+          primaryColor: "#ccfbf6",
+          primaryTextColor: "#222222",
+          primaryBorderColor: "#00c2b2",
+          lineColor: "#222222",
+          secondaryColor: "#f5f7fa",
+          tertiaryColor: "#ffffff",
+          fontFamily: "Plus Jakarta Sans, ui-sans-serif, system-ui, sans-serif"
+        },
+        flowchart: { useMaxWidth: true, curve: "basis" },
         sequence: { useMaxWidth: true }
       });
       var sources = document.querySelectorAll(".mermaid-src");
@@ -381,20 +722,26 @@
         var code = codes[i];
         var outEl = outputs[i];
         var id = "mermaid-" + Date.now() + "-" + i;
-        if (!code) { renderNext(i + 1); return; }
+        if (!code) {
+          renderNext(i + 1);
+          return;
+        }
         function done(svg, bindFunctions) {
           if (typeof svg === "string") outEl.innerHTML = svg;
           if (typeof bindFunctions === "function") bindFunctions(outEl);
           renderNext(i + 1);
         }
         function fail(err) {
-          outEl.innerHTML = "<p style='color:#b91c1c'>Diagram error: " + (err && err.message || "parse failed") + "</p>";
+          outEl.innerHTML =
+            "<p style='color:#b91c1c;font-size:0.9rem'>Diagram error: " +
+            ((err && err.message) || "parse failed") +
+            "</p>";
           renderNext(i + 1);
         }
         try {
           var p = mermaid.render(id, code);
           if (p && typeof p.then === "function") {
-            p.then(function(r) {
+            p.then(function (r) {
               var svg = r && (r.svg || r);
               var bf = r && r.bindFunctions;
               done(svg, bf);
