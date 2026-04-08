@@ -1,0 +1,56 @@
+@startuml
+title ShopSmart - Deployment Diagram
+
+node "Client Device" {
+    node "Web Browser / Mobile App" {
+        component "ShopSmart Frontend (Next.js)" as ClientApp
+    }
+}
+
+cloud "Internet" {
+    node "CDN (Content Delivery Network)" {
+        artifact "Static Assets" as StaticAssets
+    }
+}
+
+node "Cloud Infrastructure (AWS EC2)" {
+    node "Docker Host" {
+        node "Nginx Reverse Proxy" {
+            component "Load Balancer / Proxy" as Nginx
+        }
+
+        node "Backend Container" {
+            component "Express.js API Server" as APIServer
+        }
+    }
+}
+
+database "Managed Database Service (Neon)" {
+    component "PostgreSQL Database" as Database
+}
+
+ClientApp <--> Nginx : HTTPS (REST API requests)
+ClientApp <-- StaticAssets : HTTPS (Fetch static assets)
+Nginx <--> APIServer : HTTP
+APIServer <--> Database : TCP/IP (Prisma Client)
+
+' Deployment Details
+note right of ClientApp
+  Vercel or statically served Next.js
+  providing server-side rendering (SSR)
+  and static generation.
+end note
+
+note right of APIServer
+  Node.js based Express application
+  handling business logic,
+  authorization, and data processing.
+end note
+
+note right of Database
+  Neon PostgreSQL Serverless database
+  housing User, Order, Product,
+  and transaction data.
+end note
+
+@enduml
