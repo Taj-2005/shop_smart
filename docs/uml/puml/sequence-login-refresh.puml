@@ -1,0 +1,76 @@
+@startuml
+title ShopSmart Authentication Flow - Login & Token Refresh
+
+actor Client
+participant "Express Router" as Router
+participant "AuthMiddleware" as Middleware
+participant "AuthService" as Service
+participant "BcryptHashService" as Hash
+participant "ITokenService" as Token
+database "Prisma DB" as DB
+
+== Login Flow ==
+Client -> Router: POST /api/auth/login\n{email, password}
+Router -> Service: authenticate(email, password)
+Service -> DB: findUserByEmail(email)
+alt User Not Found
+    DB --> Service: null
+    Service --> Router: Throw UnauthorizedError
+    Router --> Client: 401 Unauthorized
+else User Found
+    DB --> Service: User Record
+    Service -> Hash: verifyPassword(password, user.passwordHash)
+    Hash --> Service: isValid
+    
+    alt Invalid Password
+        Service --> Router: Throw UnauthorizedError
+        Router --> Client: 401 Unauthorized
+    else Valid Password
+        Service -> Token: generateAccessToken(user.id)
+        Token --> Service: accessToken
+        
+        Service -> Token: generateRefreshToken(user.id)
+        Token --> Service: refreshToken
+        
+        Service -> DB: saveRefreshToken(user.id, tokenHash)
+        DB --> Service: success
+        
+        Service --> Router: { user, accessToken }
+        Router -> Router: Set Cookie (refreshToken)
+        Router --> Client: 200 OK
+    end
+end
+
+== Request with Auth ==
+Client -> Router: GET /api/orders\nAuthorization: Bearer <accessToken>
+Router -> Middleware: verifyToken(accessToken)
+Middleware -> Token: verify(accessToken)
+alt Token Expired
+    Token --> Middleware: TokenExpiredError
+    Middleware --> Router: next(err)
+    Router --> Client: 401 Unauthorized
+else Token Valid
+    Token --> Middleware: decoded Payload {userId}
+    Middleware -> DB: getUserById(userId)
+    DB --> Middleware: User Profile
+    Middleware -> Router: req.user = User Profile
+    Router -> Service: (Proceed to Controller logic)
+end
+
+== Refresh Token Flow ==
+Client -> Router: POST /api/auth/refresh\nCookie: refreshToken
+Router -> Service: refreshAccessToken(refreshToken)
+Service -> DB: verifyRefreshTokenHash(tokenHash)
+alt Invalid / Expired Refresh Token
+    DB --> Service: null / Expired
+    Service --> Router: Throw UnauthorizedError
+    Router --> Client: 401 Unauthorized
+else Valid Refresh Token
+    DB --> Service: tokenRecord
+    Service -> Token: generateAccessToken(tokenRecord.userId)
+    Token --> Service: newAccessToken
+    Service --> Router: { accessToken: newAccessToken }
+    Router --> Client: 200 OK
+end
+
+@enduml
