@@ -1,0 +1,22 @@
+@startuml
+title ShopSmart Order Lifecycle State Machine
+
+[*] --> PENDING : Customer Checks Out Cart
+note right of PENDING : Requires Payment capture
+
+PENDING --> CONFIRMED : Payment Gateway Appoved
+PENDING --> CANCELLED : Payment Timeout / Failed
+
+CONFIRMED --> PROCESSING : Merchant Acknowledges
+PROCESSING --> SHIPPED : Product Package Dispatched
+SHIPPED --> DELIVERED : Marked Received by Carrier API
+
+CONFIRMED --> CANCELLED : Admin Rejects Order
+PROCESSING --> CANCELLED : Out of Stock Unresolvable Risk
+
+DELIVERED --> REFUNDED : Customer return initiated and approved
+DELIVERED --> [*] : Completion Flow
+CANCELLED --> [*] : Termination Flow
+REFUNDED --> [*]
+
+@enduml
