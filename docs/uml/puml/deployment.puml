@@ -1,56 +1,73 @@
 @startuml
-title ShopSmart - Deployment Diagram
+title ShopSmart - Deployment Diagram (Horizontal Scaling)
+
+skinparam componentStyle rectangle
 
 node "Client Device" {
-    node "Web Browser / Mobile App" {
-        component "ShopSmart Frontend (Next.js)" as ClientApp
+    component "Web Browser / Mobile App" as Client
+}
+
+cloud "Vercel (Main Server)" {
+    node "Vercel Edge Network (Auto-scaling)" {
+        component "Next.js Serverless Instance 1" as Vercel1
+        component "Next.js Serverless Instance N" as VercelN
     }
 }
 
-cloud "Internet" {
-    node "CDN (Content Delivery Network)" {
-        artifact "Static Assets" as StaticAssets
+cloud "Render (Backend API)" {
+    component "Render Load Balancer" as RenderLB
+    
+    node "Express.js Auto-scaling Cluster" {
+        component "API Node 1" as API1
+        component "API Node 2" as API2
+        component "API Node N" as APIN
     }
 }
 
-node "Cloud Infrastructure (AWS EC2)" {
-    node "Docker Host" {
-        node "Nginx Reverse Proxy" {
-            component "Load Balancer / Proxy" as Nginx
-        }
-
-        node "Backend Container" {
-            component "Express.js API Server" as APIServer
-        }
+cloud "AWS (Infrastructure)" {
+    node "Amazon S3 & CloudFront" {
+        artifact "Static Assets & Media" as CDN
+    }
+    
+    database "Amazon RDS Multi-AZ (PostgreSQL)" {
+        component "Primary Database" as DB_Primary
+        component "Read Replica" as DB_Replica
     }
 }
 
-database "Managed Database Service (Neon)" {
-    component "PostgreSQL Database" as Database
-}
+Client <--> CDN : Fetch Static Assets (HTTPS)
+Client <--> Vercel1 : HTTPS Request
+Client <--> VercelN : HTTPS Request
 
-ClientApp <--> Nginx : HTTPS (REST API requests)
-ClientApp <-- StaticAssets : HTTPS (Fetch static assets)
-Nginx <--> APIServer : HTTP
-APIServer <--> Database : TCP/IP (Prisma Client)
+Vercel1 <--> RenderLB : Proxy API Calls (HTTPS)
+VercelN <--> RenderLB : Proxy API Calls (HTTPS)
 
-' Deployment Details
-note right of ClientApp
-  Vercel or statically served Next.js
-  providing server-side rendering (SSR)
-  and static generation.
+RenderLB ==> API1 : Route Traffic
+RenderLB ==> API2 : Route Traffic
+RenderLB ==> APIN : Route Traffic
+
+API1 <--> DB_Primary : Read/Write (TCP/IP)
+API2 <--> DB_Primary : Read/Write (TCP/IP)
+APIN <--> DB_Primary : Read/Write (TCP/IP)
+
+API1 --> CDN : Upload Media
+API2 --> CDN : Upload Media
+
+DB_Primary ..> DB_Replica : Async Replication
+
+note Bottom of Vercel1
+  Vercel is the main server handling
+  frontend SSR and auto-scaling.
 end note
 
-note right of APIServer
-  Node.js based Express application
-  handling business logic,
-  authorization, and data processing.
+note Right of APIN
+  Render provides horizontal scaling
+  and load balancing for the Node.js API.
 end note
 
-note right of Database
-  Neon PostgreSQL Serverless database
-  housing User, Order, Product,
-  and transaction data.
+note Bottom of DB_Replica
+  AWS handles highly available database
+  replication and scalable object storage.
 end note
 
 @enduml
