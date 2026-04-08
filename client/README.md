@@ -34,3 +34,5 @@ Open [http://localhost:3000](http://localhost:3000).
 - **Favicon**: `app/icon.svg` (teal “S” logo)
 
 See the [root README](../README.md) for full project setup and deployment.
+
+**Production:** [shopsmart.taj.works](https://shopsmart.taj.works/) — API [shopsmart-server.taj.works](https://shopsmart-server.taj.works/) — Swagger [shopsmart-swagger.taj.works/api-docs](https://shopsmart-swagger.taj.works/api-docs)

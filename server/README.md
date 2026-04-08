@@ -1,6 +1,8 @@
 # ShopSmart Backend API
 
-Production-grade e-commerce REST API with Prisma, PostgreSQL, JWT auth (access + refresh with HttpOnly cookie), and Nodemailer for email verification and password reset.
+Production-grade e-commerce REST API with Prisma, PostgreSQL, JWT access + refresh, and Nodemailer for email verification and password reset.
+
+**Production:** [API](https://shopsmart-server.taj.works/) · [Swagger](https://shopsmart-swagger.taj.works/api-docs) · [Frontend](https://shopsmart.taj.works/)
 
 ---
 
@@ -31,7 +33,7 @@ Server runs at `http://localhost:4000`. Health: `GET /api/health`.
 
 ## API Reference
 
-Base URL: `http://localhost:4000/api`
+Base URL: `http://localhost:4000/api` (production: `https://shopsmart-server.taj.works/api`)
 
 All success responses use `{ "success": true, ... }`. Errors use `{ "success": false, "message": "...", "code": "..." }` with appropriate HTTP status.
 

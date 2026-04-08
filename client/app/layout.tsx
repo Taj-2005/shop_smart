@@ -23,7 +23,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://shopsmart-v1.vercel.app"),
+  metadataBase: new URL("https://shopsmart.taj.works"),
   title: {
     default: "ShopSmart — Smart Shopping, Trusted Choices",
     template: "%s | ShopSmart",

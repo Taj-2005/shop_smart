@@ -2,9 +2,9 @@
 
 This document describes all **API endpoints** and all **tests** for the ShopSmart backend.
 
-**Base URL:** `http://localhost:4000/api` (or your deployed API URL)
+**Base URL:** `http://localhost:4000/api` (local) — production: `https://shopsmart-server.taj.works/api`
 
-**Authentication:** Protected routes expect the `Authorization` header: `Bearer <accessToken>`. Refresh token is sent via cookie `refreshToken` or optional body `refreshToken`.
+**Authentication:** Protected routes expect `Authorization: Bearer <accessToken>`. Refresh uses `POST /api/auth/refresh` with `{ "refreshToken": "..." }` in the JSON body.
 
 **Error response format (all errors):**
 

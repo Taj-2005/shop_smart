@@ -26,10 +26,9 @@ This is the **ShopSmart API**: the backend for the ShopSmart eCommerce app. It i
 
 **Live deployment:**
 
-- API docs (this page): \`https://shop-smart-7sjw.onrender.com/api-docs/\`
-- Backend API base (Render): \`https://shop-smart-7sjw.onrender.com\`
-- Backend API base (Vercel): \`https://shopsmart-server.vercel.app\`
-- Frontend: \`https://shopsmart-v1.vercel.app\`
+- **Frontend:** \`https://shopsmart.taj.works/\`
+- **Backend API:** \`https://shopsmart-server.taj.works/\`
+- **Swagger / API docs:** \`https://shopsmart-swagger.taj.works/api-docs\`
 
 **What each section does:**
 
@@ -73,8 +72,7 @@ Endpoints that require authentication show a lock icon. Use **Authorize** and en
     `.trim(),
   },
   servers: [
-    { url: "https://shop-smart-7sjw.onrender.com", description: "Production (Render)" },
-    { url: "https://shopsmart-server.vercel.app", description: "Production (Vercel)" },
+    { url: "https://shopsmart-server.taj.works", description: "Production (API)" },
     { url: "http://localhost:4000", description: "Local development" },
     { url: "/", description: "Current host" },
   ],

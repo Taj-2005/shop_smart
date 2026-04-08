@@ -4,10 +4,10 @@
 
 ### A production-grade, full-stack eCommerce platform built with Next.js, Express, and Prisma
 
-**Horizontal scaling** is implemented. The system is deployed on **AWS**, **Render**, and **Vercel** — **Vercel hosts the main API server** ([shopsmart-server.vercel.app](https://shopsmart-server.vercel.app/)).
+**Production** is hosted on **[taj.works](https://shopsmart.taj.works/)** (frontend, API, and Swagger). The stack is stateless and can scale horizontally behind your chosen provider (e.g. CDN, serverless, or VMs).
 
-[![Frontend](https://img.shields.io/badge/Frontend-Next.js%2015-black?style=for-the-badge&logo=next.js)](https://shopsmart-v1.vercel.app/)
-[![Backend](https://img.shields.io/badge/Backend-Express%20%2B%20Prisma-blue?style=for-the-badge&logo=nodedotjs)](https://shop-smart-7sjw.onrender.com)
+[![Frontend](https://img.shields.io/badge/Frontend-Next.js%2015-black?style=for-the-badge&logo=next.js)](https://shopsmart.taj.works/)
+[![Backend](https://img.shields.io/badge/Backend-Express%20%2B%20Prisma-blue?style=for-the-badge&logo=nodedotjs)](https://shopsmart-server.taj.works/)
 [![Language](https://img.shields.io/badge/TypeScript-100%25-3178C6?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
 [![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](./LICENSE)
 
@@ -19,12 +19,11 @@
 
 | Service | URL |
 |---|---|
-| **Frontend** | [shopsmart-v1.vercel.app](https://shopsmart-v1.vercel.app/) |
-| **Backend API** | [shop-smart-7sjw.onrender.com](https://shop-smart-7sjw.onrender.com) |
-| **Backend (Vercel)** | [shopsmart-server.vercel.app](https://shopsmart-server.vercel.app/) |
-| **Swagger API Docs** | [shop-smart-7sjw.onrender.com/api-docs](https://shop-smart-7sjw.onrender.com/api-docs) |
+| **Frontend** | [shopsmart.taj.works](https://shopsmart.taj.works/) |
+| **Backend API** | [shopsmart-server.taj.works](https://shopsmart-server.taj.works/) |
+| **Swagger (API docs)** | [shopsmart-swagger.taj.works/api-docs](https://shopsmart-swagger.taj.works/api-docs) |
 
-**Scaling & hosting:** Horizontal scaling is implemented for the stack. The app is deployed across **AWS**, **Render**, and **Vercel**. The **main API server** runs on **Vercel** ([shopsmart-server.vercel.app](https://shopsmart-server.vercel.app/)); Render hosts an additional API instance and Swagger ([API docs](https://shop-smart-7sjw.onrender.com/api-docs/)); AWS supports infrastructure for database, networking, or related services as configured for your environment.
+**Hosting:** Point the Next.js app at the API with `NEXT_PUBLIC_API_URL=https://shopsmart-server.taj.works` and set the API’s `FRONTEND_URL=https://shopsmart.taj.works` for CORS and email links. Database and other infra can live on any managed provider you use behind the API.
 
 ---
 
@@ -82,9 +81,9 @@
 | **Auth** | JWT (httpOnly cookies), bcrypt |
 | **API Docs** | Swagger / OpenAPI |
 | **Testing** | Playwright (E2E), Jest (unit) |
-| **Frontend Deploy** | Vercel |
-| **Backend Deploy** | Vercel (main server), Render, AWS (infra as configured) |
-| **Scaling** | Horizontal scaling across Vercel, Render, AWS |
+| **Production** | [shopsmart.taj.works](https://shopsmart.taj.works/) (frontend), [shopsmart-server.taj.works](https://shopsmart-server.taj.works/) (API), [Swagger](https://shopsmart-swagger.taj.works/api-docs) |
+| **Deploy targets** | Any Node/Next host (Vercel, Render, AWS, VPS, Docker, etc.) |
+| **Scaling** | Stateless API + frontend; scale instances behind your platform |
 | **Containerization** | Docker + Docker Compose |
 
 ---
@@ -307,7 +306,7 @@ npm run test
 
 Interactive API documentation is available via Swagger UI:
 
-**[https://shop-smart-7sjw.onrender.com/api-docs](https://shop-smart-7sjw.onrender.com/api-docs)**
+**[https://shopsmart-swagger.taj.works/api-docs](https://shopsmart-swagger.taj.works/api-docs)**
 
 ### API Modules
 
@@ -328,60 +327,37 @@ Interactive API documentation is available via Swagger UI:
 ### Testing APIs
 
 1. Open the Swagger UI link above
-2. Use the **Authorize** button to set a Bearer token, or rely on cookie auth from the frontend
+2. Use the **Authorize** button with \`Bearer <accessToken>\` from login/register/refresh
 3. Execute requests directly in the browser
 
 ---
 
 ## Deployment
 
-### Horizontal scaling & multi-cloud
+### Production (taj.works)
 
-ShopSmart is set up for **horizontal scaling**: stateless API and frontend tiers can scale out behind each provider’s edge or compute layer. Production uses **three hosting surfaces**:
-
-| Platform | Role |
+| Role | URL |
 |---|---|
-| **Vercel** | **Main server** — primary API at [shopsmart-server.vercel.app](https://shopsmart-server.vercel.app/); Next.js frontend at [shopsmart-v1.vercel.app](https://shopsmart-v1.vercel.app/). Serverless/edge scaling is automatic per request volume. |
-| **Render** | Additional API deployment; **official Swagger UI** at [shop-smart-7sjw.onrender.com/api-docs/](https://shop-smart-7sjw.onrender.com/api-docs/). |
-| **AWS** | Supporting infrastructure (e.g. managed database, VPC, load-balanced resources) as you wire in your account — complements Vercel/Render for data and regional scaling. |
+| **Frontend (Next.js)** | [https://shopsmart.taj.works/](https://shopsmart.taj.works/) |
+| **Backend API (Express)** | [https://shopsmart-server.taj.works/](https://shopsmart-server.taj.works/) |
+| **Swagger UI** | [https://shopsmart-swagger.taj.works/api-docs](https://shopsmart-swagger.taj.works/api-docs) |
 
-Point `NEXT_PUBLIC_API_URL` at your chosen API base (typically the Vercel main server in production).
+**Environment variables (production example)**
 
-### Frontend — Vercel
+- **Frontend:** `NEXT_PUBLIC_API_URL=https://shopsmart-server.taj.works`
+- **Backend:** `FRONTEND_URL=https://shopsmart.taj.works` (CORS + password-reset / verify-email links)
 
-The `client/` directory is deployed to [Vercel](https://vercel.com). On every push to `main`, Vercel automatically builds and deploys the Next.js app.
+### Horizontal scaling & other hosts
 
-Set the following environment variable in the Vercel dashboard (example: main API on Vercel):
+The API and frontend are **stateless**; you can run multiple instances behind a load balancer or use serverless/edge platforms ([Vercel](https://vercel.com), [Render](https://render.com), AWS, Docker on a VPS, etc.). Keep `NEXT_PUBLIC_API_URL` and `FRONTEND_URL` aligned with the origins users actually hit.
 
-```
-NEXT_PUBLIC_API_URL=https://shopsmart-server.vercel.app
-```
-
-(You can instead point at the Render API base if that is your canonical backend for a given environment.)
-
-### Backend — Vercel (main server)
-
-The backend is deployed on Vercel as the **primary** API:
-
-- `https://shopsmart-server.vercel.app/`
-
-Vercel scales this tier horizontally via serverless instances. Configure CORS, `FRONTEND_URL`, and cookie settings so the browser frontend can call this origin with credentials.
-
-### Backend — Render
-
-The `server/` directory is deployed to [Render](https://render.com) as a Node.js web service.
-
-Set all required environment variables (see `.env` template above) in the Render dashboard under **Environment**.
-
-Run the following as the start command:
+**Backend start command** (typical Node deployment):
 
 ```bash
 npx prisma migrate deploy && npm start
 ```
 
-### AWS
-
-Use **AWS** for durable, horizontally scalable pieces of the stack (for example RDS or Aurora for PostgreSQL, ElastiCache if you add sessions later, ALB + Auto Scaling groups for self-managed nodes, or S3/CloudFront for assets). The app itself stays stateless at the API layer so you can scale Vercel/Render workers while the database and shared services live on AWS or any managed PostgreSQL provider.
+Use **AWS** or any managed provider for **PostgreSQL** and supporting services (RDS, VPC, S3/CloudFront for assets, etc.) as needed.
 
 ---
 
@@ -456,5 +432,5 @@ This project is licensed under the [MIT License](./LICENSE).
 ---
 
 <div align="center">
-  Built with Next.js, Express, and Prisma
+  Built with ❤️ Next.js, Express, and Prisma
 </div>

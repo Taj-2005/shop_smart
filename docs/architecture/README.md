@@ -2,6 +2,8 @@
 
 This folder holds **system and software architecture** documentation for ShopSmart.
 
+**Live app:** [Frontend](https://shopsmart.taj.works/) · [API](https://shopsmart-server.taj.works/) · [Swagger](https://shopsmart-swagger.taj.works/api-docs)
+
 ## Purpose
 
 - **High-level views** of how the frontend, API, database, and external systems relate (e.g. layered diagrams, C4-style context/container notes).
