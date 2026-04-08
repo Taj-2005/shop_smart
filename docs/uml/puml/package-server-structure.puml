@@ -1,0 +1,84 @@
+@startuml
+title ShopSmart Server Directory Structure
+
+package "server/src" {
+    
+    package "config" {
+        [env.ts]
+        [prisma.ts]
+        [swagger.ts]
+    }
+    
+    package "middleware" {
+        [authenticate.ts]
+        [errorHandler.ts]
+    }
+
+    package "routes" {
+        [index.ts]
+    }
+    
+    package "modules" {
+        package "auth" {
+            [auth.controller.ts]
+            [auth.service.ts]
+        }
+        package "orders" {
+            [orders.controller.ts]
+            [orders.service.ts]
+        }
+        package "products" {
+            [products.controller.ts]
+            [products.service.ts]
+        }
+        package "admin" {
+            [admin.placeholder]
+        }
+        package "super-admin" {
+            [superadmin.placeholder]
+        }
+    }
+
+    package "repositories" {
+        [PrismaOrderRepository.ts]
+        [PrismaProductRepository.ts]
+        [PrismaUserRepository.ts]
+    }
+
+    package "services" {
+        [BcryptHashService.ts]
+        [JwtTokenService.ts]
+        [NodemailerEmailService.ts]
+    }
+
+    package "factories" {
+        [ServiceFactory.ts]
+    }
+
+    package "core" {
+        [container.ts]
+    }
+}
+
+note right of [index.ts] : Consolidates module routes
+
+[index.ts] --> [auth.controller.ts] : uses endpoints
+[index.ts] --> [orders.controller.ts] : uses endpoints
+[index.ts] --> [products.controller.ts] : uses endpoints
+
+[auth.controller.ts] --> [PrismaUserRepository.ts] : injected via container
+[orders.controller.ts] --> [PrismaOrderRepository.ts] : injected via container
+[products.controller.ts] --> [PrismaProductRepository.ts] : injected via container
+
+[auth.controller.ts] --> [BcryptHashService.ts] : invokes business logic
+[auth.controller.ts] --> [JwtTokenService.ts] : invokes business logic
+
+[ServiceFactory.ts] --> [PrismaOrderRepository.ts] : instantiates
+[ServiceFactory.ts] --> [PrismaProductRepository.ts] : instantiates
+[ServiceFactory.ts] --> [PrismaUserRepository.ts] : instantiates
+[ServiceFactory.ts] --> [BcryptHashService.ts] : instantiates
+[ServiceFactory.ts] --> [JwtTokenService.ts] : instantiates
+
+[container.ts] --> [ServiceFactory.ts] : calls to compose application
+
+@enduml

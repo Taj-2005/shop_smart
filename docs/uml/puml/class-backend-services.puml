@@ -1,0 +1,170 @@
+@startuml
+title ShopSmart Backend Services - Class Diagram
+
+package "Entities" {
+    class User {
+        +String id
+        +String email
+        +String passwordHash
+        +String fullName
+        +Boolean emailVerified
+        +Boolean active
+        +DateTime createdAt
+    }
+    class Role {
+        +String id
+        +RoleType name
+    }
+    class Product {
+        +String id
+        +String name
+        +String slug
+        +Decimal price
+        +Int stockQty
+        +Boolean inStock
+        +Boolean active
+    }
+    class Category {
+        +String id
+        +String name
+        +String slug
+    }
+    class Order {
+        +String id
+        +OrderStatus status
+        +Decimal subtotal
+        +Decimal total
+        +DateTime createdAt
+    }
+    class OrderItem {
+        +String id
+        +Int quantity
+        +Decimal price
+    }
+    class Cart {
+        +String id
+        +DateTime updatedAt
+    }
+    class CartItem {
+        +String id
+        +Int quantity
+    }
+    class Review {
+        +String id
+        +Int rating
+        +String body
+        +String status
+    }
+    
+    User "1" *-- "many" Order
+    User "1" *-- "1" Cart
+    Cart "1" *-- "many" CartItem
+    Order "1" *-- "many" OrderItem
+    OrderItem --> Product
+    CartItem --> Product
+    Product --> Category
+    User --> Role
+    User "1" *-- "many" Review
+    Review --> Product
+}
+
+package "Core / Business Logic" {
+    class AuthService {
+        +authenticate(email, password)
+        +register(userData)
+        +refreshToken()
+    }
+    class OrderService {
+        +createOrder(userId, cartId)
+        +updateOrderStatus(orderId, status)
+    }
+    class ProductService {
+        +getProducts()
+        +getProductBySlug(slug)
+    }
+    class AdminService {
+        +getDashboard()
+        +getRevenue()
+        +getUsersStats()
+        +getProductsStats()
+        +getOrdersStats()
+        +listOrders(query)
+        +listReviews(query)
+        +getSalesReport()
+        +getRevenueReport()
+        +getTrendReport(query)
+        +getByCategoryReport()
+        +listCoupons(query)
+        +createCoupon(data)
+        +updateCoupon(id, data)
+        +deleteCoupon(id)
+        +listLogs(query)
+    }
+    class SuperAdminService {
+        +createAdmin(data)
+        +deleteAdmin(id)
+        +updateUserRole(id, roleData)
+        +getConfig()
+        +patchConfig(data)
+        +getPaymentConfig()
+        +patchPaymentConfig(data)
+        +getShippingProviders()
+        +patchShippingProviders(data)
+        +getFeatureFlags()
+        +patchFeatureFlags(data)
+        +getTopProductsAnalytics(query)
+        +getAnalytics(query)
+    }
+}
+
+package "Repositories (Data Access)" {
+    class PrismaOrderRepository {
+        +createOrder(data)
+        +findOrderById(id)
+        +updateStatus(id, status)
+    }
+    class PrismaProductRepository {
+        +findProducts(filters)
+        +findById(id)
+    }
+    class PrismaUserReader {
+        +findByEmail(email)
+    }
+}
+
+package "Infrastructure" {
+    interface ITokenService {
+        +generateAccessToken(userId)
+        +verifyToken(token)
+    }
+    class JwtTokenService implements ITokenService
+    
+    class AppContainer {
+        +authService: AuthService
+        +orderService: OrderService
+        +productService: ProductService
+        +adminService: AdminService
+        +superAdminService: SuperAdminService
+    }
+    
+    class ServiceFactory {
+        <<Factory>>
+        +createAuthService()
+        +createOrderService()
+        +createProductService()
+        +createAdminService()
+        +createSuperAdminService()
+    }
+    
+    AppContainer --> ServiceFactory : uses
+}
+
+AuthService --> ITokenService : uses
+AuthService --> PrismaUserReader : uses
+OrderService --> PrismaOrderRepository : uses
+ProductService --> PrismaProductRepository : uses
+ServiceFactory --> AuthService : creates
+ServiceFactory --> AdminService : creates
+ServiceFactory --> SuperAdminService : creates
+
+@enduml

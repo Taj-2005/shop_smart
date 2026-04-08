@@ -1,0 +1,73 @@
+@startuml
+title ShopSmart - Deployment Diagram (Horizontal Scaling)
+
+skinparam componentStyle rectangle
+
+node "Client Device" {
+    component "Web Browser / Mobile App" as Client
+}
+
+cloud "Vercel (Main Server)" {
+    node "Vercel Edge Network (Auto-scaling)" {
+        component "Next.js Serverless Instance 1" as Vercel1
+        component "Next.js Serverless Instance N" as VercelN
+    }
+}
+
+cloud "Render (Backend API)" {
+    component "Render Load Balancer" as RenderLB
+    
+    node "Express.js Auto-scaling Cluster" {
+        component "API Node 1" as API1
+        component "API Node 2" as API2
+        component "API Node N" as APIN
+    }
+}
+
+cloud "AWS (Infrastructure)" {
+    node "Amazon S3 & CloudFront" {
+        artifact "Static Assets & Media" as CDN
+    }
+    
+    database "Amazon RDS Multi-AZ (PostgreSQL)" {
+        component "Primary Database" as DB_Primary
+        component "Read Replica" as DB_Replica
+    }
+}
+
+Client <--> CDN : Fetch Static Assets (HTTPS)
+Client <--> Vercel1 : HTTPS Request
+Client <--> VercelN : HTTPS Request
+
+Vercel1 <--> RenderLB : Proxy API Calls (HTTPS)
+VercelN <--> RenderLB : Proxy API Calls (HTTPS)
+
+RenderLB ==> API1 : Route Traffic
+RenderLB ==> API2 : Route Traffic
+RenderLB ==> APIN : Route Traffic
+
+API1 <--> DB_Primary : Read/Write (TCP/IP)
+API2 <--> DB_Primary : Read/Write (TCP/IP)
+APIN <--> DB_Primary : Read/Write (TCP/IP)
+
+API1 --> CDN : Upload Media
+API2 --> CDN : Upload Media
+
+DB_Primary ..> DB_Replica : Async Replication
+
+note Bottom of Vercel1
+  Vercel is the main server handling
+  frontend SSR and auto-scaling.
+end note
+
+note Right of APIN
+  Render provides horizontal scaling
+  and load balancing for the Node.js API.
+end note
+
+note Bottom of DB_Replica
+  AWS handles highly available database
+  replication and scalable object storage.
+end note
+
+@enduml

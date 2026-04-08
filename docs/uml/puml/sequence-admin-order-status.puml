@@ -1,0 +1,36 @@
+@startuml
+title Admin Order Status Modification Flow
+
+actor Admin
+participant "Client UI" as UI
+participant "AdminController" as Controller
+participant "AdminService" as Service
+participant "AuditLogService" as Audit
+database "Prisma DB" as DB
+participant "EmailService" as Email
+
+Admin -> UI: View Order Details, Select Status (e.g. SHIPPED)
+UI -> Controller: PATCH /api/admin/orders/:id/status\nHeaders: Bearer Token, Body: {status}
+Controller -> Service: updateOrderStatus(orderId, "SHIPPED")
+
+Service -> DB: findOrderById(orderId)
+DB --> Service: Order Detail
+
+Service -> Service: Validate Legal Transition (PENDING -> SHIPPED is valid)
+
+Service -> DB: begin Transaction
+DB -> DB: update Order status = "SHIPPED"
+DB --> Service: Updated Order Record
+
+Service -> Audit: log("ORDER_STATUS_CHANGED", orderId, Admin.id, "SHIPPED")
+Audit -> DB: insert AuditLog Record
+DB --> Audit: success
+
+Service -> Email: "Order Shipped Email" Notification
+Email --> Customer: Dispatch Status Emitted (Async)
+
+Service --> Controller: { success: true, order: UpdatedOrder }
+Controller --> UI: 200 OK
+UI --> Admin: Toast "Order status updated successfully"
+
+@enduml
