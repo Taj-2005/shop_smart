@@ -1,0 +1,54 @@
+@startuml
+title Backend Activity Flow - Checkout Order Processing
+
+start
+:Controller receives checkout data;
+:Validate Request Payload schema;
+if (Is Payload Valid?) then (yes)
+  :Fetch Client's Cart items;
+  if (Cart is Empty?) then (yes)
+    :Throw ValidationError;
+    stop
+  else (no)
+    :Loop over CartItems;
+    while (More items?) is (yes)
+        :Fetch DB Product;
+        if (product.inStock && product.stockQty >= Item.qty) then (yes)
+            :Aggregate Line subtotal;
+        else (no)
+            :Throw OutOfStockError;
+            stop
+        endif
+    endwhile (no)
+    
+    :Calculate Shipping Strategy;
+    :Calculate Discount Strategy (Coupons);
+    :Deduce Final Total price;
+    
+    fork
+        :Start DB Transaction;
+        :Insert Order record into Database;
+        :Insert Multiple OrderItems connected to Order;
+        :Decrement Product quantities in inventory;
+        :Clear User's shopping Cart;
+    fork again
+        :Submit Stripe Payment Intent;
+    end fork
+    
+    if (Payment Successful?) then (yes)
+        :Commit DB Transaction;
+        :Fire async OrderConfirmation Email Event;
+        :Return 201 Created to Client UI;
+    else (no)
+        :Rollback DB Transaction;
+        :Return 400 Payment Failed;
+    endif
+    
+    stop
+  endif
+else (no)
+  :Return 400 Bad Request;
+  stop
+endif
+
+@enduml
