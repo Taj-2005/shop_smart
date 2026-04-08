@@ -1,0 +1,50 @@
+@startuml
+title Sequence Diagram - Checkout Process
+
+actor Customer
+participant "Client UI" as UI
+participant "OrderController" as Controller
+participant "OrderService" as Service
+participant "CommerceDiscountStrategy" as Discount
+participant "CommerceShippingStrategy" as Shipping
+participant "PrismaCartRepository" as CartDB
+participant "PrismaOrderRepository" as OrderDB
+participant "EmailService" as Email
+
+Customer -> UI: Clicks 'Place Order'
+UI -> Controller: POST /api/orders {cartId, addressId, paymentToken}
+Controller -> Service: createOrder(userId, cartId, details)
+
+Service -> CartDB: findCartWithItems(cartId)
+CartDB --> Service: Cart Details (Product IDs & Qtys)
+
+Service -> Service: Validate Stock Levels (inStock, qty)
+alt Stock Insufficient
+    Service --> Controller: Throw BadRequestError("Out of stock")
+    Controller --> UI: 400 Out of Stock
+else Stock Sufficient
+    Service -> Service: Calculate Line Subtotals
+    Service -> Discount: calculateDiscount(cart)
+    Discount --> Service: discountAmt
+    
+    Service -> Shipping: calculateShipping(address)
+    Shipping --> Service: shippingAmt
+    
+    Service -> Service: Calculate Final Total
+    
+    Service -> OrderDB: begin Prisma Transaction
+    OrderDB -> OrderDB: insert Order Profile
+    OrderDB -> OrderDB: insert Order Items
+    OrderDB -> OrderDB: decrement Product Stock
+    OrderDB -> CartDB: Clear user cart
+    OrderDB --> Service: Commit Transaction & Returned Order Profile
+    
+    Service -> Email: "Order Confirmation Email" Event
+    Email --> Customer: Email Delivered asynchronously
+    
+    Service --> Controller: { order: OrderProfile }
+    Controller --> UI: 201 Created
+    UI --> Customer: "Order Placed Successfully" Redirect
+end
+
+@enduml
