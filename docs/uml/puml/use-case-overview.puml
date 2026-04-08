@@ -1,0 +1,39 @@
+@startuml
+title ShopSmart Use Case Overview
+
+left to right direction
+
+actor Customer as C
+actor Admin as A
+actor SuperAdmin as SA
+
+package "ShopSmart Application" {
+    usecase "Browse Products & Categories" as UC1
+    usecase "Manage Shopping Cart" as UC2
+    usecase "Place and Track Orders" as UC3
+    usecase "Submit Product Reviews" as UC4
+    usecase "Manage User Profile & Addresses" as UC5
+    
+    usecase "Manage Inventory & Products" as UC6
+    usecase "Process & Fulfill Orders" as UC7
+    usecase "Manage System Users" as UC8
+    usecase "Manage Global Configuration" as UC9
+    usecase "Audit Logs View" as UC10
+}
+
+C --> UC1
+C --> UC2
+C --> UC3
+C --> UC4
+C --> UC5
+
+A --> UC6
+A --> UC7
+A --> UC1 : Views Storefront
+
+SA --> A : Inherits Admin Privileges
+SA --> UC8
+SA --> UC9
+SA --> UC10
+
+@enduml
