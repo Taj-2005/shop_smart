@@ -1,0 +1,46 @@
+@startuml
+title ShopSmart Component & System Architecture
+
+node "Client Device" {
+    [Web Browser / Mobile App] as Client
+}
+
+cloud "Vercel Edge Network" {
+    [Next.js Frontend SSR/Static] as FrontendApp
+}
+
+node "Cloud Environment (AWS/DigitalOcean)" {
+    package "Node.js Server Environment" {
+        [Express App Router] as HTTPRouter
+        [Middleware Layers \n (Auth, Rate Limit)] as Middleware
+        [Module Controllers] as Controllers
+        [Business Services] as Services
+        [Service Factories \n & DI Container] as DIContainer
+        [Prisma Repositories \n (DAOs)] as Repositories
+    }
+}
+
+database "Managed Database" {
+    [PostgreSQL DB] as Postgres
+}
+
+cloud "External Services" {
+    [Email Provider \n (Nodemailer / SendGrid)] as EmailProvider
+}
+
+Client <--> FrontendApp : HTTPS User Interaction
+Client <--> HTTPRouter : HTTPS API Calls
+
+FrontendApp <--> HTTPRouter : Initial SSR API Calls
+
+HTTPRouter --> Middleware
+Middleware --> Controllers
+Controllers --> Services
+Services <--> Repositories : Fetches / Mutates Models
+DIContainer --> Services : Wires Dependencies
+DIContainer --> Controllers : Injects Dependencies
+Repositories <--> Postgres : Prisma ORM TCP Connection
+
+Services --> EmailProvider : Dispatch Notifications
+
+@enduml
