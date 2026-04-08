@@ -1,73 +1,86 @@
 @startuml
-title ShopSmart - Deployment Diagram (Horizontal Scaling)
+title ShopSmart — Deployment diagram (production topology & horizontal scaling)
 
 skinparam componentStyle rectangle
+skinparam roundcorner 6
 
-node "Client Device" {
-    component "Web Browser / Mobile App" as Client
-}
+note as NLegend
+  **Production URLs**
+  • Frontend: **https://shopsmart.taj.works/**
+  • REST API: **https://shopsmart-server.taj.works/**
+  • Swagger UI: **https://shopsmart-swagger.taj.works/api-docs**
 
-cloud "Vercel (Main Server)" {
-    node "Vercel Edge Network (Auto-scaling)" {
-        component "Next.js Serverless Instance 1" as Vercel1
-        component "Next.js Serverless Instance N" as VercelN
-    }
-}
+  **Runtime integration**
+  • Auth: JWT in **localStorage**; API expects **Authorization: Bearer**
+  • **CORS**: API **FRONTEND_URL** = frontend origin (no cookie-based cross-origin session)
+  • Browser calls **NEXT_PUBLIC_API_URL** directly (no required Next.js BFF proxy)
 
-cloud "Render (Backend API)" {
-    component "Render Load Balancer" as RenderLB
-    
-    node "Express.js Auto-scaling Cluster" {
-        component "API Node 1" as API1
-        component "API Node 2" as API2
-        component "API Node N" as APIN
-    }
-}
-
-cloud "AWS (Infrastructure)" {
-    node "Amazon S3 & CloudFront" {
-        artifact "Static Assets & Media" as CDN
-    }
-    
-    database "Amazon RDS Multi-AZ (PostgreSQL)" {
-        component "Primary Database" as DB_Primary
-        component "Read Replica" as DB_Replica
-    }
-}
-
-Client <--> CDN : Fetch Static Assets (HTTPS)
-Client <--> Vercel1 : HTTPS Request
-Client <--> VercelN : HTTPS Request
-
-Vercel1 <--> RenderLB : Proxy API Calls (HTTPS)
-VercelN <--> RenderLB : Proxy API Calls (HTTPS)
-
-RenderLB ==> API1 : Route Traffic
-RenderLB ==> API2 : Route Traffic
-RenderLB ==> APIN : Route Traffic
-
-API1 <--> DB_Primary : Read/Write (TCP/IP)
-API2 <--> DB_Primary : Read/Write (TCP/IP)
-APIN <--> DB_Primary : Read/Write (TCP/IP)
-
-API1 --> CDN : Upload Media
-API2 --> CDN : Upload Media
-
-DB_Primary ..> DB_Replica : Async Replication
-
-note Bottom of Vercel1
-  Vercel is the main server handling
-  frontend SSR and auto-scaling.
+  **Scaling**
+  • Stateless Next.js tier and stateless Express tier scale independently
+  • PostgreSQL and object storage are managed services behind the API
 end note
 
-note Right of APIN
-  Render provides horizontal scaling
-  and load balancing for the Node.js API.
+actor "End user" as User
+
+node "Client device" {
+  [Browser\nNext.js + React + Axios] as SPA
+}
+
+cloud "Frontend origin\nshopsmart.taj.works" {
+  [Next.js 1\nApp Router] as Next1
+  [Next.js N] as NextN
+}
+
+cloud "API origin\nshopsmart-server.taj.works" {
+  [Express + Prisma\n/api] as Api1
+  [Express + Prisma\n(instance N)] as ApiN
+  [Swagger UI\n/api-docs] as SwaggerApi
+}
+
+cloud "Docs origin (optional)\nshopsmart-swagger.taj.works" {
+  [Swagger UI\n(/api-docs)] as SwaggerDoc
+}
+
+database "PostgreSQL\n(managed)" as DB
+storage "Object storage\n(S3 / R2 / …)" as Blob
+
+User --> SPA : Use app
+SPA --> Next1 : **HTTPS** pages & assets
+SPA --> NextN : **HTTPS**
+
+SPA --> Api1 : **HTTPS** JSON **REST**\n**Bearer** + **CORS**
+SPA --> ApiN : **HTTPS**
+
+SPA ..> SwaggerDoc : **HTTPS** optional\n(API documentation)
+SPA ..> SwaggerApi : **HTTPS** optional\nsame host as API
+
+SwaggerDoc ..> Api1 : **Try it out**\n→ OpenAPI server URL\n(typically API origin)
+
+Api1 --> DB : Prisma **TCP/TLS**
+ApiN --> DB : Prisma **TCP/TLS**
+Api1 ..> Blob : Media **URLs**\n(optional)
+
+note bottom of Next1
+  **Horizontal scaling:** more Next.js workers or edge
+  replicas; static assets may sit behind a CDN.
 end note
 
-note Bottom of DB_Replica
-  AWS handles highly available database
-  replication and scalable object storage.
+note bottom of Api1
+  **Horizontal scaling:** multiple Node/serverless
+  instances. Serverless bundles must include
+  **swagger-ui-dist** so /api-docs assets are not
+  served as HTML (Vercel: **includeFiles**).
+end note
+
+note bottom of SwaggerDoc
+  Often the **same Express** stack on a second hostname,
+  or a **reverse proxy** to the API. Not a separate
+  business tier unless you deploy docs-only.
+end note
+
+note bottom of DB
+  **RDS / Neon / Supabase / etc.** Optional read
+  replicas for read-heavy workloads.
 end note
 
 @enduml
