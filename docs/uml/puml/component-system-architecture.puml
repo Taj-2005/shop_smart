@@ -1,46 +1,75 @@
 @startuml
-title ShopSmart Component & System Architecture
+title ShopSmart — Component & system architecture
 
-node "Client Device" {
-    [Web Browser / Mobile App] as Client
+skinparam componentStyle rectangle
+skinparam roundcorner 6
+
+node "Client device" {
+  [Browser\nNext.js + React + Axios] as Browser
+  note right of Browser
+    **Session (cross-origin)**
+    Access + refresh JWT in **localStorage**.
+    API calls: **Authorization: Bearer**
+    Base URL: **NEXT_PUBLIC_API_URL**
+    (e.g. shopsmart-server.taj.works)
+  end note
 }
 
-cloud "Vercel Edge Network" {
-    [Next.js Frontend SSR/Static] as FrontendApp
+cloud "Frontend host\n(e.g. shopsmart.taj.works)" {
+  [Next.js App Router\nSSR / SSG / client navigation] as NextApp
 }
 
-node "Cloud Environment (AWS/DigitalOcean)" {
-    package "Node.js Server Environment" {
-        [Express App Router] as HTTPRouter
-        [Middleware Layers \n (Auth, Rate Limit)] as Middleware
-        [Module Controllers] as Controllers
-        [Business Services] as Services
-        [Service Factories \n & DI Container] as DIContainer
-        [Prisma Repositories \n (DAOs)] as Repositories
-    }
+node "API host\n(e.g. shopsmart-server.taj.works)" {
+  package "Express application" {
+    [HTTP surface\n/api/** and /api-docs/**] as HttpSurface
+    [Middleware\n(CORS, helmet, rate limit, JSON)] as Middleware
+    [authenticate / authorize\n(JWT Bearer + RBAC)] as AuthLayer
+    [Feature controllers\n(modules)] as Controllers
+    [Business services] as Services
+    [Factories + DI container] as DIContainer
+    [Prisma repositories] as Repositories
+  }
 }
 
-database "Managed Database" {
-    [PostgreSQL DB] as Postgres
+database "PostgreSQL\n(managed)" {
+  [Primary + optional replicas] as Postgres
 }
 
-cloud "External Services" {
-    [Email Provider \n (Nodemailer / SendGrid)] as EmailProvider
+cloud "External integrations" {
+  [Email provider\nNodemailer / SendGrid] as EmailProvider
 }
 
-Client <--> FrontendApp : HTTPS User Interaction
-Client <--> HTTPRouter : HTTPS API Calls
+' --- User traffic ---
+Browser --> NextApp : **HTTPS**\nHTML, JS, assets, SSR
 
-FrontendApp <--> HTTPRouter : Initial SSR API Calls
+' --- Cross-origin API (primary integration path) ---
+Browser --> HttpSurface : **HTTPS** JSON **REST**\n**CORS** (FRONTEND_URL)\n**Bearer** token
 
-HTTPRouter --> Middleware
-Middleware --> Controllers
+' --- Optional: Next.js server calls API (RSC, route handlers, etc.) ---
+NextApp ..> HttpSurface : **HTTPS** optional\nserver-side **fetch**
+
+' --- In-process API pipeline ---
+HttpSurface --> Middleware
+Middleware --> AuthLayer
+AuthLayer --> Controllers
 Controllers --> Services
-Services <--> Repositories : Fetches / Mutates Models
-DIContainer --> Services : Wires Dependencies
-DIContainer --> Controllers : Injects Dependencies
-Repositories <--> Postgres : Prisma ORM TCP Connection
+Services <--> Repositories : domain I/O
+DIContainer ..> Services : inject
+DIContainer ..> Controllers : inject
+Repositories <--> Postgres : **Prisma**\nTCP/TLS
 
-Services --> EmailProvider : Dispatch Notifications
+Services --> EmailProvider : transactional mail\n(verify, reset, …)
+
+note bottom of HttpSurface
+  **Swagger UI** is served from the same Express
+  app (**/api-docs**). OpenAPI **Try it out**
+  targets the configured API server URL.
+end note
+
+note bottom of NextApp
+  Frontend and API are **separate deployables**
+  on different origins; the browser is the
+  integration point for authenticated **REST**.
+end note
 
 @enduml
