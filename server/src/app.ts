@@ -21,7 +21,8 @@ const SHOPSMART_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0
 </svg>`;
 
 const app = express();
-const publicDir = path.join(__dirname, "..", "..", "public");
+/** Resolve static files from <server>/public (same in dev and after tsc → dist/src/). */
+const publicDir = path.resolve(process.cwd(), "public");
 
 app.use(
   helmet({
