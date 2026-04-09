@@ -1,4 +1,5 @@
 import "./container";
+import fs from "fs";
 import path from "path";
 import express from "express";
 import helmet from "helmet";
@@ -21,8 +22,21 @@ const SHOPSMART_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0
 </svg>`;
 
 const app = express();
-/** Resolve static files from <server>/public (same in dev and after tsc → dist/src/). */
-const publicDir = path.resolve(process.cwd(), "public");
+/** Static HTML/UML for the API (named api-static so Vercel includes it in the function bundle; `public/` is reserved for static hosting). */
+function resolveApiStaticDir(): string {
+  const candidates = [
+    path.resolve(process.cwd(), "api-static"),
+    path.join(__dirname, "..", "..", "api-static"),
+    path.join(__dirname, "..", "api-static"),
+  ];
+  for (const dir of candidates) {
+    if (fs.existsSync(path.join(dir, "architecture.html"))) {
+      return path.resolve(dir);
+    }
+  }
+  return path.resolve(process.cwd(), "api-static");
+}
+const publicDir = resolveApiStaticDir();
 
 app.use(
   helmet({
