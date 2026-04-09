@@ -1,0 +1,247 @@
+@startuml er-database-shop-smart
+title ShopSmart — Entity–relationship model (PostgreSQL / Prisma)\nSource: pgAdmin DDL export (domain tables only; _prisma_migrations omitted)
+
+skinparam linetype ortho
+skinparam roundcorner 8
+skinparam shadowing false
+skinparam entity {
+  BackgroundColor #F5F7FA
+  BorderColor #222222
+}
+skinparam arrow {
+  Color #00A396
+}
+
+hide circle
+hide methods
+
+' ---------------------------------------------------------------------------
+' Reference / catalog
+' ---------------------------------------------------------------------------
+
+entity "roles" as roles {
+  * **id** : text <<PK>>
+  --
+  * **name** : RoleType
+  description : text
+}
+
+entity "categories" as categories {
+  * **id** : text <<PK>>
+  --
+  * **name** : text
+  * **slug** : text
+  description : text
+  created_at : timestamp
+  updated_at : timestamp
+  deleted_at : timestamp
+}
+
+entity "coupons" as coupons {
+  * **id** : text <<PK>>
+  --
+  * **code** : text
+  * **type** : text
+  * **value** : numeric(12,2)
+  min_order : numeric(12,2)
+  max_uses : int
+  used_count : int
+  expires_at : timestamp
+  active : boolean
+  created_at : timestamp
+  updated_at : timestamp
+}
+
+entity "system_config" as system_config {
+  * **id** : text <<PK>>
+  --
+  * **key** : text
+  * **value** : jsonb
+  updated_at : timestamp
+}
+
+' ---------------------------------------------------------------------------
+' Users & auth
+' ---------------------------------------------------------------------------
+
+entity "users" as users {
+  * **id** : text <<PK>>
+  --
+  * **email** : text
+  * **password_hash** : text
+  * **full_name** : text
+  avatar_url : text
+  email_verified : boolean
+  email_verify_token : text
+  email_verify_expires : timestamp
+  active : boolean
+  failed_logins : int
+  locked_until : timestamp
+  reset_token_hash : text
+  reset_token_expires : timestamp
+  * **role_id** : text <<FK>>
+  created_at : timestamp
+  updated_at : timestamp
+  deleted_at : timestamp
+}
+
+entity "refresh_tokens" as refresh_tokens {
+  * **id** : text <<PK>>
+  --
+  * **token_hash** : text
+  * **user_id** : text <<FK>>
+  * **expires_at** : timestamp
+  revoked : boolean
+  created_at : timestamp
+}
+
+entity "addresses" as addresses {
+  * **id** : text <<PK>>
+  --
+  * **user_id** : text <<FK>>
+  * **line1** : text
+  line2 : text
+  * **city** : text
+  * **state** : text
+  * **postal_code** : text
+  * **country** : text
+  is_default : boolean
+  created_at : timestamp
+  updated_at : timestamp
+}
+
+entity "audit_logs" as audit_logs {
+  * **id** : text <<PK>>
+  --
+  user_id : text <<FK, nullable>>
+  * **action** : text
+  * **resource** : text
+  resource_id : text
+  ip : text
+  user_agent : text
+  metadata : jsonb
+  created_at : timestamp
+}
+
+' ---------------------------------------------------------------------------
+' Catalog / commerce
+' ---------------------------------------------------------------------------
+
+entity "products" as products {
+  * **id** : text <<PK>>
+  --
+  * **name** : text
+  * **slug** : text
+  description : text
+  * **price** : numeric(12,2)
+  original_price : numeric(12,2)
+  * **image** : text
+  images : jsonb
+  * **category_id** : text <<FK>>
+  in_stock : boolean
+  stock_qty : int
+  active : boolean
+  is_new : boolean
+  is_deal : boolean
+  created_at : timestamp
+  updated_at : timestamp
+  deleted_at : timestamp
+}
+
+' ---------------------------------------------------------------------------
+' Cart
+' ---------------------------------------------------------------------------
+
+entity "carts" as carts {
+  * **id** : text <<PK>>
+  --
+  * **user_id** : text <<FK>>
+  updated_at : timestamp
+}
+
+entity "cart_items" as cart_items {
+  * **id** : text <<PK>>
+  --
+  * **cart_id** : text <<FK>>
+  * **product_id** : text <<FK>>
+  quantity : int
+  created_at : timestamp
+}
+
+' ---------------------------------------------------------------------------
+' Orders
+' ---------------------------------------------------------------------------
+
+entity "orders" as orders {
+  * **id** : text <<PK>>
+  --
+  * **user_id** : text <<FK>>
+  * **status** : OrderStatus
+  * **subtotal** : numeric(12,2)
+  discount : numeric(12,2)
+  shipping : numeric(12,2)
+  * **total** : numeric(12,2)
+  address_id : text <<FK, nullable>>
+  created_at : timestamp
+  updated_at : timestamp
+}
+
+entity "order_items" as order_items {
+  * **id** : text <<PK>>
+  --
+  * **order_id** : text <<FK>>
+  * **product_id** : text <<FK>>
+  * **quantity** : int
+  * **price** : numeric(12,2)
+  created_at : timestamp
+}
+
+' ---------------------------------------------------------------------------
+' Reviews
+' ---------------------------------------------------------------------------
+
+entity "reviews" as reviews {
+  * **id** : text <<PK>>
+  --
+  * **user_id** : text <<FK>>
+  * **product_id** : text <<FK>>
+  * **rating** : int
+  body : text
+  * **status** : text
+  created_at : timestamp
+  updated_at : timestamp
+}
+
+' ---------------------------------------------------------------------------
+' Relationships (FKs match pgAdmin DDL)
+' ---------------------------------------------------------------------------
+
+roles ||--o{ users : "role_id\nON DELETE RESTRICT"
+
+users ||--o{ refresh_tokens : "user_id\nON DELETE CASCADE"
+users ||--o{ addresses : "user_id\nON DELETE CASCADE"
+users |o--o{ audit_logs : "user_id\nON DELETE SET NULL"
+
+users ||--o{ carts : "user_id\nON DELETE CASCADE"
+carts ||--o{ cart_items : "cart_id\nON DELETE CASCADE"
+products ||--o{ cart_items : "product_id\nON DELETE CASCADE"
+
+categories ||--o{ products : "category_id\nON DELETE RESTRICT"
+
+users ||--o{ orders : "user_id\nON DELETE RESTRICT"
+addresses |o--o{ orders : "address_id\nON DELETE SET NULL"
+orders ||--o{ order_items : "order_id\nON DELETE CASCADE"
+products ||--o{ order_items : "product_id\nON DELETE RESTRICT"
+
+users ||--o{ reviews : "user_id\nON DELETE CASCADE"
+products ||--o{ reviews : "product_id\nON DELETE CASCADE"
+
+note bottom of coupons
+  **coupons** — no FK in schema;\nreferenced logically at checkout.
+end note
+
+note bottom of system_config
+  **system_config** — key/value feature flags & settings.
+end note
+
+@enduml

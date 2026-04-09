@@ -97,11 +97,11 @@ ShopSmart follows a clean **monorepo** structure with a strict layered backend a
 ```
 Browser / Next.js Client
         │
-        │  Axios (withCredentials: true)
+        │  Axios (Authorization: Bearer <accessToken>)
         ▼
    Express Server  (/api)
         │
-        ├── authenticate middleware  (JWT cookie / Bearer)
+        ├── authenticate middleware  (JWT Bearer)
         ├── authorize middleware     (RBAC: user / admin / super-admin)
         │
         ▼
@@ -109,6 +109,28 @@ Browser / Next.js Client
         │
         └── Domain Events (EventBus -> Observers)
 ```
+
+### Diagrams (UML / ER)
+
+**ER diagram (database):**
+
+![ShopSmart ER Diagram](docs/uml/images/er-diagram.png)
+
+**Deployment diagram:**
+
+![ShopSmart Deployment Diagram](docs/uml/images/deployment.png)
+
+**Component/system architecture:**
+
+![ShopSmart Component & System Architecture](docs/uml/images/component-system-architecture.png)
+
+**Server package structure:**
+
+![ShopSmart Server Package Structure](docs/uml/images/package-server-structure.png)
+
+**Backend services (class diagram):**
+
+![ShopSmart Backend Services Class Diagram](docs/uml/images/class-backend-services.png)
 
 ### Backend Layers
 

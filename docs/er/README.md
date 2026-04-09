@@ -4,6 +4,13 @@ This folder holds the **conceptual and logical data model** for ShopSmart, align
 
 **Live app:** [Frontend](https://shopsmart.taj.works/) · [API](https://shopsmart-server.taj.works/) · [Swagger](https://shopsmart-swagger.taj.works/api-docs)
 
+## Canonical ER (PlantUML)
+
+| File | Purpose |
+|------|---------|
+| [../uml/puml/er-database.puml](../uml/puml/er-database.puml) | Entity–relationship diagram (PostgreSQL / pgAdmin DDL–aligned) |
+| [../uml/images/er-database.png](../uml/images/er-database.png) | Rendered PNG (regenerate with `plantuml docs/uml/puml/er-database.puml`) |
+
 ## Purpose
 
 - Provide an **ER diagram** that matches the implemented schema (`server/prisma/schema.prisma`).
