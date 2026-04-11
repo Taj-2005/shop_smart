@@ -37,6 +37,7 @@
 - [Running Tests](#running-tests)
 - [API Documentation](#api-documentation)
 - [Deployment](#deployment)
+- [AWS (Terraform)](#aws-terraform)
 - [Design Patterns & OOP](#design-patterns--oop)
 - [Contributing](#contributing)
 - [Future Scope](#future-scope)
@@ -85,6 +86,7 @@
 | **Deploy targets** | Any Node/Next host (Vercel, Render, AWS, VPS, Docker, etc.) |
 | **Scaling** | Stateless API + frontend; scale instances behind your platform |
 | **Containerization** | Docker + Docker Compose |
+| **IaC (optional)** | Terraform (`terraform/`) — VPC, ALB, ECS Fargate, ECR, S3, optional EC2 |
 
 ---
 
@@ -208,6 +210,9 @@ shop_smart/
 │   └── specs/smoke.spec.ts
 │
 ├── docs/                           # Architecture, ER, UML, SDLC docs
+├── terraform/                      # AWS: root main.tf + modules/ (VPC, ALB, ECS, ECR, S3, EC2)
+│   ├── main.tf                     # Provider, variables, locals, data, modules, outputs
+│   └── modules/                    # network, security, s3, ecr, iam, alb, ecs, ec2
 ├── docker-compose.yml
 └── README.md
 ```
@@ -383,6 +388,35 @@ Use **AWS** or any managed provider for **PostgreSQL** and supporting services (
 
 ---
 
+## AWS (Terraform)
+
+The `terraform/` directory defines an optional AWS footprint: **VPC** (public subnets), **Application Load Balancer** (port **80** → API task, **8080** → client task), **ECS Fargate** cluster and services, **ECR** repositories for server and client images, a private **S3** bucket (read access from the ECS task role), and an optional **EC2** instance (SSM-enabled; SSH only if you set a key pair and `ssh_ingress_cidr` in variables).
+
+### Layout
+
+| Path | Purpose |
+|------|--------|
+| `terraform/main.tf` | Terraform block, AWS provider, **all input variables**, `locals`, `data` sources, `module` wiring, and **outputs** |
+| `terraform/modules/*` | Child modules: `network`, `security`, `s3`, `ecr`, `iam`, `alb`, `ecs`, `ec2` |
+| `terraform/.gitignore` | Ignores state, `.terraform/`, and local `*.tfvars` |
+
+Variable values are **not** committed. Create `terraform/terraform.tfvars` locally (or pass `-var` / `-var-file`) to override defaults such as `aws_region`, `project_name`, `environment`, container images, and ports.
+
+### Commands
+
+```bash
+cd terraform
+terraform init
+terraform plan
+terraform apply
+```
+
+Default container images are public **nginx** placeholders on port **80** so a first apply can succeed before you push to ECR. For real ShopSmart containers, set `server_container_image` / `client_container_image` to your ECR URLs and use **`server_container_port = 4000`**, **`client_container_port = 3000`**, with **`api_health_check_path = "/api/health"`** for the API target group.
+
+**PostgreSQL** is not created by this stack. Point your API task at RDS (or another database) via task environment/secrets in a follow-up change; wire `DATABASE_URL` and other secrets the same way you would on any ECS deployment.
+
+---
+
 ## Design Patterns & OOP
 
 ShopSmart demonstrates applied software engineering principles throughout the codebase.
@@ -431,6 +465,7 @@ Contributions are welcome! Please follow these steps:
 | Frontend Tests | `client/**/__tests__/*` |
 | E2E Tests | `e2e/specs/*` |
 | Docs | `docs/*` |
+| Terraform (AWS) | `terraform/main.tf`, `terraform/modules/*` |
 
 Please ensure your changes include relevant tests and do not break existing ones.
 
