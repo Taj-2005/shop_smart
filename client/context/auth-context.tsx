@@ -9,11 +9,14 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type { User, UserRole } from "@/types/auth";
 import { setOnUnauthorized } from "@/lib/auth-token";
 import { authApi, type AuthUser } from "@/api/auth.api";
 import { toApiError } from "@/api/axios";
+
+/** Dedupe verify POST (e.g. React Strict Mode) so the one-time token is not consumed twice. */
+const verifyEmailInflight = new Map<string, Promise<AuthUser>>();
 
 function normalizeRole(role: string): UserRole {
   const r = role?.toUpperCase();
@@ -31,6 +34,7 @@ function toUser(u: AuthUser | null): User | null {
     fullName: u.fullName,
     role: normalizeRole(u.role),
     avatarUrl: u.avatarUrl,
+    emailVerified: u.emailVerified,
     createdAt: u.createdAt,
   };
 }
@@ -48,6 +52,8 @@ type AuthContextValue = AuthState & {
   logout: () => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
   resetPassword: (token: string, newPassword: string) => Promise<void>;
+  /** Confirms email with one-time token; updates session from response (server also sets auth cookies). */
+  verifyEmailToken: (token: string) => Promise<void>;
   refreshUser: () => Promise<void>;
   setUser: (user: User | null) => void;
   error: string | null;
@@ -58,6 +64,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [user, setUserState] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -86,6 +93,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [router]);
 
   useEffect(() => {
+    // Avoid racing POST /verify-email (which sets new auth cookies) with POST /refresh using the old refresh token.
+    if (pathname?.startsWith("/verify-email")) {
+      setIsInitialized(true);
+      return;
+    }
     authApi
       .refresh()
       .then((data) => {
@@ -94,7 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
       .catch(() => setUserState(null))
       .finally(() => setIsInitialized(true));
-  }, []);
+  }, [pathname]);
 
   const login = useCallback(
     async (email: string, password: string, remember?: boolean) => {
@@ -182,6 +194,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const verifyEmailToken = useCallback(async (token: string) => {
+    const trimmed = token.trim();
+    if (!trimmed) {
+      setError("Invalid verification link");
+      throw new Error("Invalid verification link");
+    }
+    setError(null);
+    setIsLoading(true);
+    try {
+      let pending = verifyEmailInflight.get(trimmed);
+      if (!pending) {
+        pending = authApi.verifyEmail(trimmed).then((data) => {
+          if (data.success && data.user) return data.user;
+          throw new Error("Verification failed");
+        });
+        verifyEmailInflight.set(trimmed, pending);
+      }
+      try {
+        const authUser = await pending;
+        setUserState(toUser(authUser));
+      } catch (e) {
+        verifyEmailInflight.delete(trimmed);
+        throw e;
+      }
+    } catch (e) {
+      const err = toApiError(e);
+      setError(err.message ?? "Verification failed");
+      throw e;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   const clearError = useCallback(() => setError(null), []);
 
   const value = useMemo<AuthContextValue>(
@@ -195,6 +240,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout,
       forgotPassword,
       resetPassword,
+      verifyEmailToken,
       refreshUser,
       setUser,
       error,
@@ -209,6 +255,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout,
       forgotPassword,
       resetPassword,
+      verifyEmailToken,
       refreshUser,
       setUser,
       error,

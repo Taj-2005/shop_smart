@@ -42,5 +42,7 @@ export const authApi = {
     apiClient.post("/api/auth/reset-password", { token, newPassword }).then((r) => r.data),
 
   verifyEmail: (token: string) =>
-    apiClient.post<{ success: boolean; user: AuthUser }>("/api/auth/verify-email", { token }).then((r) => r.data),
+    apiClient
+      .post<{ success: boolean; user: AuthUser; accessToken?: string }>("/api/auth/verify-email", { token })
+      .then((r) => r.data),
 };

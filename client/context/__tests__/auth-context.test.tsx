@@ -19,6 +19,7 @@ jest.mock("@/api/auth.api", () => ({
 
 jest.mock("next/navigation", () => ({
   useRouter: () => ({ replace: jest.fn() }),
+  usePathname: () => "/",
 }));
 
 jest.mock("@/lib/auth-token", () => ({

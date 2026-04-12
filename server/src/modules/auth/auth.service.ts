@@ -199,8 +199,32 @@ export class AuthService {
     const tokenHash = this.hash.hashToken(token);
     const user = await this.userReader.findByEmailVerifyTokenHash(tokenHash);
     if (!user) throw AppErrorFactory.validation("Invalid or expired verification link", { code: "BAD_REQUEST" });
+    if (!user.active || user.deletedAt) {
+      throw AppErrorFactory.unauthorized("Account is not available");
+    }
     await this.userWriter.markEmailVerified(user.id);
-    return { user: toUserResponse({ ...user, emailVerified: true }) };
+
+    const accessToken = this.tokens.signAccessToken({
+      sub: user.id,
+      email: user.email,
+      role: user.role.name,
+    });
+    const jti = uuidv4();
+    const refreshToken = this.tokens.signRefreshToken(user.id, jti);
+    const refreshExpires = new Date(Date.now() + REFRESH_DAYS * 24 * 60 * 60 * 1000);
+    await this.refreshStore.create({
+      id: jti,
+      tokenHash: this.hash.hashToken(refreshToken),
+      userId: user.id,
+      expiresAt: refreshExpires,
+    });
+
+    return {
+      accessToken,
+      refreshToken,
+      expiresIn: this.tokens.getAccessTokenExpiresInSeconds(),
+      user: toUserResponse({ ...user, emailVerified: true }),
+    };
   }
 
   async forgotPassword(email: string) {

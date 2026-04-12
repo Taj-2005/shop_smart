@@ -34,28 +34,31 @@ export function StorefrontCatalogProvider({ children }: { children: ReactNode })
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError(false);
-    productApi
-      .list()
-      .then((res) => {
-        if (cancelled) return;
-        if (res.success && res.data) {
-          const mapped = res.data.filter((p) => p.active).map(apiProductToShopProduct);
-          startTransition(() => {
-            setProducts(mapped);
-            setApiCatalog(mapped);
-          });
-        } else {
-          setError(true);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setError(true);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setLoading(true);
+      setError(false);
+      productApi
+        .list()
+        .then((res) => {
+          if (cancelled) return;
+          if (res.success && res.data) {
+            const mapped = res.data.filter((p) => p.active).map(apiProductToShopProduct);
+            startTransition(() => {
+              setProducts(mapped);
+              setApiCatalog(mapped);
+            });
+          } else {
+            setError(true);
+          }
+        })
+        .catch(() => {
+          if (!cancelled) setError(true);
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    });
     return () => {
       cancelled = true;
     };

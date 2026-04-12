@@ -6,6 +6,8 @@ export interface User {
   fullName: string;
   role: UserRole;
   avatarUrl?: string;
+  /** Present when the API sends it (e.g. after email verification). */
+  emailVerified?: boolean;
   createdAt: string;
 }
 

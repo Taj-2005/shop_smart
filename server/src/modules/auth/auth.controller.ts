@@ -84,10 +84,12 @@ class LogoutController extends BaseController {
 export const logout = new LogoutController().handleRequest.bind(new LogoutController());
 
 class VerifyEmailController extends BaseController {
-  protected async execute(req: AuthRequest) {
+  protected async execute(req: AuthRequest, res: Response) {
     const { token } = req.body;
     const result = await container.authService.verifyEmail(token);
-    return { success: true, user: result.user };
+    res.cookie(env.COOKIE_ACCESS_NAME, result.accessToken, cookieOptions(ACCESS_MAX_AGE_MS));
+    res.cookie(env.COOKIE_REFRESH_NAME, result.refreshToken, cookieOptions(REFRESH_MAX_AGE_MS));
+    return { success: true, user: result.user, accessToken: result.accessToken };
   }
 }
 export const verifyEmail = new VerifyEmailController().handleRequest.bind(new VerifyEmailController());
