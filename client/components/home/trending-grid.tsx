@@ -4,9 +4,20 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { ProductCard } from "@/components/shop/product-card";
 import { Container } from "@/components/layout/container";
-import { getTrending } from "@/data/products";
+import { useStorefrontCatalog } from "@/context/storefront-catalog-context";
+
+function CardSkeleton() {
+  return (
+    <div className="rounded-[var(--radius-lg)] border border-border bg-surface p-4 animate-pulse">
+      <div className="aspect-square rounded-[var(--radius)] bg-muted" />
+      <div className="mt-4 h-4 w-[75%] rounded bg-muted" />
+      <div className="mt-2 h-3 w-[50%] rounded bg-muted" />
+    </div>
+  );
+}
 
 export function TrendingGrid() {
+  const { getTrending, loading, error } = useStorefrontCatalog();
   const products = getTrending(8);
 
   return (
@@ -37,22 +48,46 @@ export function TrendingGrid() {
             Shop all →
           </Link>
         </div>
-        <ul
-          className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4"
-          role="list"
-        >
-          {products.map((p, i) => (
-            <motion.li
-              key={p.id}
-              initial={{ opacity: 0, y: 12 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-20px" }}
-              transition={{ duration: 0.3, delay: i * 0.04 }}
-            >
-              <ProductCard product={p} index={i} />
-            </motion.li>
-          ))}
-        </ul>
+        {error ? (
+          <p className="text-center text-muted-foreground">
+            Products could not be loaded.{" "}
+            <Link href="/shop" className="text-accent underline">
+              Browse the shop
+            </Link>
+          </p>
+        ) : loading && products.length === 0 ? (
+          <ul className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4" role="list">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <li key={i}>
+                <CardSkeleton />
+              </li>
+            ))}
+          </ul>
+        ) : products.length === 0 ? (
+          <p className="text-center text-muted-foreground">
+            No products to show yet.{" "}
+            <Link href="/shop" className="text-accent underline">
+              Open the shop
+            </Link>
+          </p>
+        ) : (
+          <ul
+            className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4"
+            role="list"
+          >
+            {products.map((p, i) => (
+              <motion.li
+                key={p.id}
+                initial={{ opacity: 0, y: 12 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-20px" }}
+                transition={{ duration: 0.3, delay: i * 0.04 }}
+              >
+                <ProductCard product={p} index={i} />
+              </motion.li>
+            ))}
+          </ul>
+        )}
       </Container>
     </section>
   );

@@ -7,9 +7,7 @@ import { Container } from "@/components/layout/container";
 import { FiltersSidebar, type ShopFilters } from "@/components/shop/filters-sidebar";
 import { SortBar, type SortOption } from "@/components/shop/sort-bar";
 import { ProductGrid } from "@/components/shop/product-grid";
-import { productApi } from "@/api/product.api";
-import { apiProductToShopProduct } from "@/lib/api-product-mapper";
-import { setApiCatalog } from "@/data/catalog-resolver";
+import { useStorefrontCatalog } from "@/context/storefront-catalog-context";
 import type { Product } from "@/data/products";
 
 function getDefaultFilters(searchParams: ReturnType<typeof useSearchParams>): ShopFilters {
@@ -81,10 +79,8 @@ function useFilteredAndSortedProducts(
 function ShopContent() {
   const searchParams = useSearchParams();
   const dealOnly = searchParams.get("deal") === "1";
-
-  const [catalog, setCatalog] = useState<Product[]>([]);
-  const [catalogError, setCatalogError] = useState<string | null>(null);
-  const [catalogLoading, setCatalogLoading] = useState(true);
+  const { products: catalog, loading: catalogLoading, error: catalogFetchError } =
+    useStorefrontCatalog();
 
   const [filters, setFilters] = useState<ShopFilters>(() =>
     getDefaultFilters(searchParams)
@@ -96,34 +92,8 @@ function ShopContent() {
     setFilters(getDefaultFilters(searchParams));
   }, [searchParams]);
 
-  useEffect(() => {
-    let cancelled = false;
-    setCatalogLoading(true);
-    setCatalogError(null);
-    productApi
-      .list()
-      .then((res) => {
-        if (cancelled) return;
-        if (res.success && res.data) {
-          const mapped = res.data.filter((p) => p.active).map(apiProductToShopProduct);
-          setCatalog(mapped);
-          setApiCatalog(mapped);
-        } else {
-          setCatalogError("Could not load products.");
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setCatalogError("Could not load products.");
-      })
-      .finally(() => {
-        if (!cancelled) setCatalogLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   const products = useFilteredAndSortedProducts(catalog, filters, sortBy, dealOnly);
+  const catalogError = catalogFetchError ? "Could not load products." : null;
 
   return (
     <motion.div

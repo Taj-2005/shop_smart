@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans, Outfit } from "next/font/google";
 import { ShopProvider } from "@/context/shop-context";
 import { AuthProvider } from "@/context/auth-context";
+import { StorefrontCatalogProvider } from "@/context/storefront-catalog-context";
 import "./globals.css";
 
 const plusJakarta = Plus_Jakarta_Sans({
@@ -55,12 +56,14 @@ export default function RootLayout({
     <html lang="en" className={`${plusJakarta.variable} ${outfit.variable}`}>
       <body className="min-h-screen antialiased">
         <AuthProvider>
-          <ShopProvider>
-            <a href="#main-content" className="skip-link">
-              Skip to main content
-            </a>
-            {children}
-          </ShopProvider>
+          <StorefrontCatalogProvider>
+            <ShopProvider>
+              <a href="#main-content" className="skip-link">
+                Skip to main content
+              </a>
+              {children}
+            </ShopProvider>
+          </StorefrontCatalogProvider>
         </AuthProvider>
       </body>
     </html>

@@ -1,15 +1,17 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { ProductCard } from "@/components/shop/product-card";
 import { Container } from "@/components/layout/container";
 import type { Product } from "@/data/products";
-import { getNewArrivals } from "@/data/products";
+import { useStorefrontCatalog } from "@/context/storefront-catalog-context";
 
 const RESUME_DELAY_MS = 3000;
 
 export function NewArrivalsCarousel() {
+  const { getNewArrivals, loading, error } = useStorefrontCatalog();
   const products = getNewArrivals(8);
   const [paused, setPaused] = useState(false);
   const resumeRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -45,6 +47,66 @@ export function NewArrivalsCarousel() {
         <ProductCard product={p} index={i} variant="compact" />
       </motion.div>
     ));
+
+  if (error) {
+    return (
+      <section
+        id="new-arrivals"
+        className="scroll-mt-20 py-16 sm:py-20 lg:py-24 bg-surface"
+        aria-labelledby="new-arrivals-heading"
+      >
+        <Container as="div" className="text-center text-muted-foreground">
+          <p>
+            New arrivals could not be loaded.{" "}
+            <Link href="/shop" className="text-accent underline">
+              Browse the shop
+            </Link>
+          </p>
+        </Container>
+      </section>
+    );
+  }
+
+  if (loading && products.length === 0) {
+    return (
+      <section
+        id="new-arrivals"
+        className="scroll-mt-20 py-16 sm:py-20 lg:py-24 bg-surface"
+        aria-labelledby="new-arrivals-heading"
+      >
+        <Container as="div">
+          <div className="h-8 w-48 animate-pulse rounded bg-muted" />
+          <div className="mt-8 flex gap-6 overflow-hidden">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={i}
+                className="h-80 w-[min(72vw,260px)] shrink-0 animate-pulse rounded-[var(--radius-lg)] bg-muted sm:w-[300px]"
+              />
+            ))}
+          </div>
+        </Container>
+      </section>
+    );
+  }
+
+  if (products.length === 0) {
+    return (
+      <section
+        id="new-arrivals"
+        className="scroll-mt-20 py-16 sm:py-20 lg:py-24 bg-surface"
+        aria-labelledby="new-arrivals-heading"
+      >
+        <Container as="div" className="text-center text-muted-foreground">
+          <p>
+            No new arrivals listed yet.{" "}
+            <Link href="/shop" className="text-accent underline">
+              View all products
+            </Link>
+          </p>
+        </Container>
+      </section>
+    );
+  }
 
   return (
     <section

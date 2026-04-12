@@ -4,9 +4,22 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { ProductCard } from "@/components/shop/product-card";
 import { Container } from "@/components/layout/container";
-import { getDeals } from "@/data/products";
+import { useStorefrontCatalog } from "@/context/storefront-catalog-context";
+
+function CardSkeleton({ className }: { className?: string }) {
+  return (
+    <div
+      className={`rounded-[var(--radius-lg)] border border-border bg-surface p-4 animate-pulse ${className ?? ""}`}
+    >
+      <div className="aspect-square rounded-[var(--radius)] bg-muted" />
+      <div className="mt-4 h-4 w-[75%] rounded bg-muted" />
+      <div className="mt-2 h-3 w-[50%] rounded bg-muted" />
+    </div>
+  );
+}
 
 export function DealsSection() {
+  const { getDeals, loading, error } = useStorefrontCatalog();
   const products = getDeals(6);
 
   return (
@@ -50,22 +63,46 @@ export function DealsSection() {
             View all deals →
           </Link>
         </div>
-        <ul
-          className="grid grid-cols-1 gap-6 sm:gap-6 md:grid-cols-2 md:gap-6 lg:grid-cols-3"
-          role="list"
-        >
-          {products.map((p, i) => (
-            <motion.li
-              key={p.id}
-              initial={{ opacity: 0, y: 12 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-20px" }}
-              transition={{ duration: 0.3, delay: i * 0.05 }}
-            >
-              <ProductCard product={p} index={i} />
-            </motion.li>
-          ))}
-        </ul>
+        {error ? (
+          <p className="text-center text-muted-foreground">
+            Products could not be loaded.{" "}
+            <Link href="/shop" className="text-accent underline">
+              Browse the shop
+            </Link>
+          </p>
+        ) : loading && products.length === 0 ? (
+          <ul className="grid grid-cols-1 gap-6 sm:gap-6 md:grid-cols-2 md:gap-6 lg:grid-cols-3" role="list">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <li key={i}>
+                <CardSkeleton />
+              </li>
+            ))}
+          </ul>
+        ) : products.length === 0 ? (
+          <p className="text-center text-muted-foreground">
+            No deals listed yet.{" "}
+            <Link href="/shop?deal=1" className="text-accent underline">
+              View the shop
+            </Link>
+          </p>
+        ) : (
+          <ul
+            className="grid grid-cols-1 gap-6 sm:gap-6 md:grid-cols-2 md:gap-6 lg:grid-cols-3"
+            role="list"
+          >
+            {products.map((p, i) => (
+              <motion.li
+                key={p.id}
+                initial={{ opacity: 0, y: 12 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-20px" }}
+                transition={{ duration: 0.3, delay: i * 0.05 }}
+              >
+                <ProductCard product={p} index={i} />
+              </motion.li>
+            ))}
+          </ul>
+        )}
       </Container>
     </section>
   );

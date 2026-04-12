@@ -131,7 +131,9 @@ export class ServiceFactory {
   }
 
   static createCartController(db: PrismaClient): ReturnType<typeof createCartController> {
-    return createCartController(new CartService(new PrismaCartRepository(db)));
+    const cartRepo = new PrismaCartRepository(db);
+    const productRepo = new PrismaProductRepository(db);
+    return createCartController(new CartService(cartRepo, productRepo));
   }
 
   static createCategoriesController(db: PrismaClient): ReturnType<typeof createCategoriesController> {

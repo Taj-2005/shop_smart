@@ -14,8 +14,15 @@ class GetCartController extends BaseController {
 class PostCartController extends BaseController {
   constructor(private cartService: CartService) { super(); }
   protected async execute(req: AuthRequest, res: Response) {
-    const { productId, quantity = 1 } = req.body;
+    const rawId = req.body?.productId;
+    const productId =
+      typeof rawId === "string" ? rawId.trim() : rawId != null ? String(rawId).trim() : "";
+    const qtyRaw = req.body?.quantity ?? 1;
+    const quantity = Number(qtyRaw);
     if (!productId) throw AppErrorFactory.validation("productId required");
+    if (!Number.isFinite(quantity) || quantity < 1 || !Number.isInteger(quantity)) {
+      throw AppErrorFactory.validation("quantity must be a positive whole number");
+    }
     const updated = await this.cartService.addItem(req.user!.id, productId, quantity);
     res.status(201);
     return updated;

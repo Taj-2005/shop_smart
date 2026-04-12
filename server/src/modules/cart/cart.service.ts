@@ -1,9 +1,19 @@
-import { Prisma } from "@prisma/client";
 import { AppErrorFactory } from "../../factories/AppErrorFactory";
 import type { ICartRepository } from "../../interfaces/ICartRepository";
+import type { IProductRepository } from "../../interfaces/IProductRepository";
+
+/** Bundled/serverless builds can break `instanceof PrismaClientKnownRequestError`; use structural check. */
+function isPrismaForeignKeyError(err: unknown): boolean {
+  if (err === null || typeof err !== "object") return false;
+  const o = err as { code?: string };
+  return o.code === "P2003";
+}
 
 export class CartService {
-  constructor(private readonly cart: ICartRepository) {}
+  constructor(
+    private readonly cart: ICartRepository,
+    private readonly products: IProductRepository
+  ) {}
 
   /** JSON-safe cart payload (Prisma Decimals and raw rows normalized). */
   private toClientCart(raw: unknown | null): { id: string | null; items: unknown[] } {
@@ -39,11 +49,20 @@ export class CartService {
   }
 
   async addItem(userId: string, productId: string, quantity: number) {
+    const product = await this.products.findById(productId);
+    if (!product) {
+      throw AppErrorFactory.validation("Unknown product");
+    }
+    const row = product as { active?: boolean };
+    if (row.active === false) {
+      throw AppErrorFactory.validation("Product is not available");
+    }
+
     const cart = await this.cart.ensureCart(userId);
     try {
       await this.cart.upsertItem(cart.id, productId, quantity);
     } catch (err) {
-      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2003") {
+      if (isPrismaForeignKeyError(err)) {
         throw AppErrorFactory.validation("Unknown product");
       }
       throw err;
