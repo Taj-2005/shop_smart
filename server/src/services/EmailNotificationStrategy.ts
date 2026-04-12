@@ -1,36 +1,25 @@
 import { env } from "../config/env";
+import { buildPasswordResetEmail, buildVerificationEmail } from "../email/transactional-email";
 import type { IAuthNotificationSender } from "../interfaces/IAuthNotificationSender";
 import type { IEmailService } from "../interfaces/IEmailService";
 import type { INotificationChannel } from "../interfaces/INotificationChannel";
 import type { AuthNotificationContext, AuthNotificationKind } from "../interfaces/INotificationKinds";
 
-const emailContent: Record<
-  AuthNotificationKind,
-  (ctx: AuthNotificationContext) => { subject: string; html: string }
-> = {
-  verification: (ctx) => {
-    const link = `${env.FRONTEND_URL}/verify-email?token=${ctx.token}`;
-    return {
-      subject: "Verify your ShopSmart email",
-      html: `
-    <p>Please verify your email by clicking the link below:</p>
-    <p><a href="${link}">${link}</a></p>
-    <p>This link expires in 24 hours.</p>
-  `,
-    };
-  },
-  password_reset: (ctx) => {
-    const link = `${env.FRONTEND_URL}/reset-password?token=${ctx.token}`;
-    return {
-      subject: "Reset your ShopSmart password",
-      html: `
-    <p>You requested a password reset. Click the link below to set a new password:</p>
-    <p><a href="${link}">${link}</a></p>
-    <p>This link expires in 1 hour. If you didn't request this, ignore this email.</p>
-  `,
-    };
-  },
-};
+const frontendBase = env.FRONTEND_URL.replace(/\/$/, "");
+
+function buildEmail(ctx: AuthNotificationContext): { subject: string; html: string } {
+  if (ctx.kind === "verification") {
+    const verifyUrl = `${frontendBase}/verify-email?token=${encodeURIComponent(ctx.token)}`;
+    return buildVerificationEmail({
+      fullName: ctx.fullName,
+      verifyUrl,
+    });
+  }
+  const resetUrl = `${frontendBase}/reset-password?token=${encodeURIComponent(ctx.token)}`;
+  return buildPasswordResetEmail({ resetUrl });
+}
+
+const kinds: AuthNotificationKind[] = ["verification", "password_reset"];
 
 export class EmailNotificationStrategy implements IAuthNotificationSender, INotificationChannel {
   readonly channel = "email" as const;
@@ -39,7 +28,8 @@ export class EmailNotificationStrategy implements IAuthNotificationSender, INoti
 
   async send(ctx: AuthNotificationContext): Promise<void> {
     if (!ctx.email?.trim()) return;
-    const { subject, html } = emailContent[ctx.kind](ctx);
+    if (!kinds.includes(ctx.kind)) return;
+    const { subject, html } = buildEmail(ctx);
     await this.email.sendMail(ctx.email.trim(), subject, html);
   }
 }

@@ -80,6 +80,7 @@ export class AuthService {
       kind: "verification",
       email: user.email,
       token: verifyToken,
+      fullName: user.fullName,
     }).catch(() => {});
 
     const accessToken = this.tokens.signAccessToken({
@@ -212,11 +213,11 @@ export class AuthService {
         tokenHash,
         new Date(Date.now() + RESET_EXPIRES_MS)
       );
-      await this.dispatchNotifications({
+      this.dispatchNotifications({
         kind: "password_reset",
         email: user.email,
         token,
-      });
+      }).catch(() => {});
     }
     return { message: "If an account exists with this email, you will receive a reset link." };
   }

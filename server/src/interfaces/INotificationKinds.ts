@@ -6,5 +6,7 @@ export interface AuthNotificationContext {
   kind: AuthNotificationKind;
   email: string;
   token: string;
+  /** Display name for welcome / verification copy (signup). */
+  fullName?: string;
   phoneE164?: string;
 }
