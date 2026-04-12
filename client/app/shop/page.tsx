@@ -7,7 +7,9 @@ import { Container } from "@/components/layout/container";
 import { FiltersSidebar, type ShopFilters } from "@/components/shop/filters-sidebar";
 import { SortBar, type SortOption } from "@/components/shop/sort-bar";
 import { ProductGrid } from "@/components/shop/product-grid";
-import { PRODUCTS } from "@/data/products";
+import { productApi } from "@/api/product.api";
+import { apiProductToShopProduct } from "@/lib/api-product-mapper";
+import { setApiCatalog } from "@/data/catalog-resolver";
 import type { Product } from "@/data/products";
 
 function getDefaultFilters(searchParams: ReturnType<typeof useSearchParams>): ShopFilters {
@@ -31,12 +33,13 @@ function getDefaultFilters(searchParams: ReturnType<typeof useSearchParams>): Sh
 }
 
 function useFilteredAndSortedProducts(
+  source: Product[],
   filters: ShopFilters,
   sortBy: SortOption,
   dealOnly: boolean
 ) {
   return useMemo(() => {
-    let list: Product[] = [...PRODUCTS];
+    let list: Product[] = [...source];
 
     if (dealOnly) {
       list = list.filter((p) => p.isDeal);
@@ -65,15 +68,23 @@ function useFilteredAndSortedProducts(
     if (sortBy === "price-asc") list.sort((a, b) => a.price - b.price);
     else if (sortBy === "price-desc") list.sort((a, b) => b.price - a.price);
     else if (sortBy === "rating") list.sort((a, b) => b.rating - a.rating);
-    else if (sortBy === "newest") list.sort((a, b) => Number(b.id) - Number(a.id));
+    else if (sortBy === "newest")
+      list.sort(
+        (a, b) =>
+          new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime()
+      );
 
     return list;
-  }, [filters, sortBy, dealOnly]);
+  }, [source, filters, sortBy, dealOnly]);
 }
 
 function ShopContent() {
   const searchParams = useSearchParams();
   const dealOnly = searchParams.get("deal") === "1";
+
+  const [catalog, setCatalog] = useState<Product[]>([]);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
+  const [catalogLoading, setCatalogLoading] = useState(true);
 
   const [filters, setFilters] = useState<ShopFilters>(() =>
     getDefaultFilters(searchParams)
@@ -85,7 +96,34 @@ function ShopContent() {
     setFilters(getDefaultFilters(searchParams));
   }, [searchParams]);
 
-  const products = useFilteredAndSortedProducts(filters, sortBy, dealOnly);
+  useEffect(() => {
+    let cancelled = false;
+    setCatalogLoading(true);
+    setCatalogError(null);
+    productApi
+      .list()
+      .then((res) => {
+        if (cancelled) return;
+        if (res.success && res.data) {
+          const mapped = res.data.filter((p) => p.active).map(apiProductToShopProduct);
+          setCatalog(mapped);
+          setApiCatalog(mapped);
+        } else {
+          setCatalogError("Could not load products.");
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setCatalogError("Could not load products.");
+      })
+      .finally(() => {
+        if (!cancelled) setCatalogLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const products = useFilteredAndSortedProducts(catalog, filters, sortBy, dealOnly);
 
   return (
     <motion.div
@@ -105,6 +143,15 @@ function ShopContent() {
               : "Discover quality products across categories."}
           </p>
         </div>
+
+        {catalogError && (
+          <div
+            className="mb-6 rounded-[var(--radius-lg)] border border-[var(--color-error)] bg-[var(--color-error)]/10 p-4 text-[var(--color-error)]"
+            role="alert"
+          >
+            {catalogError}
+          </div>
+        )}
 
         <div className="flex gap-8">
           <FiltersSidebar filters={filters} onFiltersChange={setFilters} />
@@ -132,7 +179,16 @@ function ShopContent() {
               </div>
             )}
             <div className="mt-6">
-              <ProductGrid products={products} />
+              {catalogLoading ? (
+                <div className="flex min-h-[200px] items-center justify-center">
+                  <div
+                    className="h-8 w-8 animate-spin rounded-full border-2 border-accent border-t-transparent"
+                    aria-hidden
+                  />
+                </div>
+              ) : (
+                <ProductGrid products={products} />
+              )}
             </div>
           </div>
         </div>

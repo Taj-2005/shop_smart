@@ -11,6 +11,8 @@ export type Product = {
   inStock: boolean;
   isNew?: boolean;
   isDeal?: boolean;
+  /** Set when product comes from API (used for sorting on /shop). */
+  createdAt?: string;
 };
 
 function formatPrice(n: number) {

@@ -130,7 +130,7 @@ export function ProductCard({ product, index = 0, variant = "default" }: Product
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (product.inStock) addToCart(product.id, 1);
+    if (product.inStock) void addToCart(product.id, 1);
   };
 
   const imageArea = (
@@ -217,8 +217,8 @@ export function ProductCard({ product, index = 0, variant = "default" }: Product
             {inCart ? (
               <QuantityStepper
                 quantity={qty}
-                onIncrease={() => updateQuantity(product.id, qty + 1)}
-                onDecrease={() => updateQuantity(product.id, qty - 1)}
+                onIncrease={() => void updateQuantity(product.id, qty + 1)}
+                onDecrease={() => void updateQuantity(product.id, qty - 1)}
                 touchFriendly={useMobileHorizontal}
               />
             ) : (
@@ -227,7 +227,7 @@ export function ProductCard({ product, index = 0, variant = "default" }: Product
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  if (product.inStock) moveToCart(product.id);
+                  if (product.inStock) void moveToCart(product.id);
                 }}
                 disabled={!product.inStock}
                 className="min-h-[44px] rounded-[var(--radius-sm)] bg-accent px-3 py-2 text-sm font-medium text-on-accent transition-colors hover:bg-accent/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-50 md:min-h-0"
@@ -241,8 +241,8 @@ export function ProductCard({ product, index = 0, variant = "default" }: Product
           (inCart ? (
             <QuantityStepper
               quantity={qty}
-              onIncrease={() => updateQuantity(product.id, qty + 1)}
-              onDecrease={() => updateQuantity(product.id, qty - 1)}
+              onIncrease={() => void updateQuantity(product.id, qty + 1)}
+              onDecrease={() => void updateQuantity(product.id, qty - 1)}
               touchFriendly={useMobileHorizontal}
             />
           ) : (

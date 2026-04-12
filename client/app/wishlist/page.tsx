@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useShop } from "@/context/shop-context";
-import { getProductById } from "@/data/products";
+import { resolveShopProduct } from "@/data/catalog-resolver";
 import type { Product } from "@/data/products";
 import { Container } from "@/components/layout/container";
 import { ProductCard } from "@/components/shop/product-card";
@@ -12,7 +12,7 @@ export default function WishlistPage() {
   const { wishlist } = useShop();
   const productIds = Array.from(wishlist);
   const products = productIds
-    .map((id) => getProductById(id))
+    .map((id) => resolveShopProduct(id))
     .filter((p): p is Product => !!p);
 
   return (

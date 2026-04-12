@@ -6,7 +6,8 @@ import { motion } from "framer-motion";
 import { useShop } from "@/context/shop-context";
 import { useAuth } from "@/context/auth-context";
 import { useApiCart } from "@/hooks/use-api-cart";
-import { getProductById, getFormattedPrice } from "@/data/products";
+import { getFormattedPrice } from "@/data/products";
+import { resolveShopProduct } from "@/data/catalog-resolver";
 import { Container } from "@/components/layout/container";
 
 function formatPrice(n: number) {
@@ -57,7 +58,7 @@ function GuestCartContent() {
   const { cart, removeFromCart, updateQuantity } = useShop();
   const entries = Object.entries(cart).filter(([, q]) => q > 0);
   const subtotal = entries.reduce((sum, [id, qty]) => {
-    const p = getProductById(id);
+    const p = resolveShopProduct(id);
     return sum + (p ? p.price * qty : 0);
   }, 0);
   const couponApplied = false;
@@ -82,7 +83,7 @@ function GuestCartContent() {
     <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_340px]">
       <ul className="space-y-4" role="list">
         {entries.map(([id, qty]) => {
-          const p = getProductById(id);
+          const p = resolveShopProduct(id);
           if (!p) return null;
           const { current } = getFormattedPrice(p);
           return (
@@ -102,10 +103,10 @@ function GuestCartContent() {
                 <div className="mt-3 flex flex-wrap items-center gap-4">
                   <QuantityStepper
                     quantity={qty}
-                    onIncrease={() => updateQuantity(id, qty + 1)}
-                    onDecrease={() => updateQuantity(id, qty - 1)}
+                    onIncrease={() => void updateQuantity(id, qty + 1)}
+                    onDecrease={() => void updateQuantity(id, qty - 1)}
                   />
-                  <button type="button" onClick={() => removeFromCart(id)} className="text-sm text-muted-foreground hover:text-primary underline">
+                  <button type="button" onClick={() => void removeFromCart(id)} className="text-sm text-muted-foreground hover:text-primary underline">
                     Remove
                   </button>
                 </div>
