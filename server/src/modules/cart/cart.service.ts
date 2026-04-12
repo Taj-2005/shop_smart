@@ -1,26 +1,55 @@
+import { Prisma } from "@prisma/client";
 import { AppErrorFactory } from "../../factories/AppErrorFactory";
 import type { ICartRepository } from "../../interfaces/ICartRepository";
 
 export class CartService {
   constructor(private readonly cart: ICartRepository) {}
 
+  /** JSON-safe cart payload (Prisma Decimals and raw rows normalized). */
+  private toClientCart(raw: unknown | null): { id: string | null; items: unknown[] } {
+    if (!raw) return { id: null, items: [] };
+    const cart = raw as {
+      id: string;
+      items: Array<Record<string, unknown> & { product: Record<string, unknown> | null }>;
+    };
+    return {
+      id: cart.id,
+      items: cart.items.map((i) => {
+        const p = i.product;
+        return {
+          ...i,
+          product: p
+            ? {
+                ...p,
+                price: Number(p.price),
+                originalPrice:
+                  p.originalPrice != null && p.originalPrice !== undefined
+                    ? Number(p.originalPrice as number | string)
+                    : null,
+              }
+            : null,
+        };
+      }),
+    };
+  }
+
   async getForUser(userId: string) {
     const raw = await this.cart.findCartWithItems(userId);
-    if (!raw) return { id: null, items: [] as unknown[] };
-    const cart = raw as { id: string; items: { product: { price: unknown } | null }[] };
-    return {
-      ...cart,
-      items: cart.items.map((i) => ({
-        ...i,
-        product: i.product ? { ...i.product, price: Number(i.product.price) } : null,
-      })),
-    };
+    return this.toClientCart(raw);
   }
 
   async addItem(userId: string, productId: string, quantity: number) {
     const cart = await this.cart.ensureCart(userId);
-    await this.cart.upsertItem(cart.id, productId, quantity);
-    return this.cart.findCartWithItemsById(cart.id);
+    try {
+      await this.cart.upsertItem(cart.id, productId, quantity);
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2003") {
+        throw AppErrorFactory.validation("Unknown product");
+      }
+      throw err;
+    }
+    const raw = await this.cart.findCartWithItemsById(cart.id);
+    return this.toClientCart(raw);
   }
 
   async patchItem(userId: string, itemId: string, quantity: number) {

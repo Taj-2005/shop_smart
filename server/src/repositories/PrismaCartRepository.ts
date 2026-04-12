@@ -12,8 +12,11 @@ export class PrismaCartRepository implements ICartRepository {
   }
 
   async ensureCart(userId: string) {
-    let cart = await this.prisma.cart.findUnique({ where: { userId } });
-    if (!cart) cart = await this.prisma.cart.create({ data: { userId } });
+    const cart = await this.prisma.cart.upsert({
+      where: { userId },
+      create: { userId },
+      update: {},
+    });
     return { id: cart.id };
   }
 

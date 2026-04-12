@@ -12,30 +12,68 @@ export const apiClient = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
-type RefreshResponse = { success: boolean; user?: { id: string; email: string; fullName: string; role: string; avatarUrl?: string; createdAt: string } };
+type RefreshPayload = {
+  success: boolean;
+  user?: { id: string; email: string; fullName: string; role: string; avatarUrl?: string; createdAt: string };
+};
 
-let refreshPromise: Promise<boolean> | null = null;
+/** POST /api/auth/refresh — do not run the 401 refresh-retry logic on this URL (avoids recursion / deadlock). */
+function isAuthPublic401Url(url: string | undefined): boolean {
+  if (!url) return false;
+  const path = url.split("?")[0];
+  const markers = [
+    "/api/auth/login",
+    "/api/auth/register",
+    "/api/auth/refresh",
+    "/api/auth/logout",
+    "/api/auth/forgot-password",
+    "/api/auth/reset-password",
+    "/api/auth/verify-email",
+  ];
+  return markers.some((m) => path === m || path.endsWith(m));
+}
+
+let authRefreshInFlight: Promise<RefreshPayload | null> | null = null;
+
+/**
+ * Single in-flight refresh (React Strict Mode / parallel calls must not rotate the refresh token twice).
+ */
+export function getAuthRefreshPromise(): Promise<RefreshPayload | null> {
+  if (authRefreshInFlight) return authRefreshInFlight;
+  authRefreshInFlight = apiClient
+    .post<RefreshPayload>("/api/auth/refresh", {}, { withCredentials: true })
+    .then((r) => (r.data?.success && r.data.user ? r.data : null))
+    .catch(() => null)
+    .finally(() => {
+      authRefreshInFlight = null;
+    });
+  return authRefreshInFlight;
+}
 
 async function tryRefresh(): Promise<boolean> {
-  if (refreshPromise) return refreshPromise;
-  refreshPromise = apiClient
-    .post<RefreshResponse>("/api/auth/refresh", {}, { withCredentials: true })
-    .then((res) => res.data?.success === true)
-    .catch(() => false)
-    .finally(() => {
-      refreshPromise = null;
-    });
-  return refreshPromise;
+  const data = await getAuthRefreshPromise();
+  return data?.success === true && Boolean(data.user);
 }
 
 apiClient.interceptors.response.use(
   (res) => res,
   async (err: AxiosError) => {
     const original = err.config as InternalAxiosRequestConfig & { _retry?: boolean };
-    if (err.response?.status !== 401 || original._retry) {
-      if (err.response?.status === 401) triggerUnauthorized();
+    const status = err.response?.status;
+
+    if (status !== 401) {
       return Promise.reject(err);
     }
+
+    if (isAuthPublic401Url(original?.url)) {
+      return Promise.reject(err);
+    }
+
+    if (original._retry) {
+      triggerUnauthorized();
+      return Promise.reject(err);
+    }
+
     original._retry = true;
     const refreshed = await tryRefresh();
     if (refreshed) return apiClient(original);

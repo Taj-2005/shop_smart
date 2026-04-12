@@ -1,6 +1,6 @@
 "use client";
 
-import { apiClient } from "./axios";
+import { apiClient, getAuthRefreshPromise } from "./axios";
 
 export type AuthUser = {
   id: string;
@@ -14,7 +14,7 @@ export type AuthUser = {
 
 export type AuthResponse = {
   success: boolean;
-  user: AuthUser;
+  user?: AuthUser;
 };
 
 export type MeResponse = { success: boolean; user: AuthUser };
@@ -29,7 +29,9 @@ export const authApi = {
   logout: () => apiClient.post("/api/auth/logout", {}).then((r) => r.data),
 
   refresh: () =>
-    apiClient.post<AuthResponse>("/api/auth/refresh", {}, { withCredentials: true }).then((r) => r.data),
+    getAuthRefreshPromise().then((d) =>
+      d && d.success && d.user ? { success: true, user: d.user } : { success: false }
+    ),
 
   me: () => apiClient.get<MeResponse>("/api/auth/me").then((r) => r.data),
 
