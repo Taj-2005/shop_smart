@@ -8,6 +8,7 @@ import {
   useMemo,
   useRef,
   useState,
+  startTransition,
   type Dispatch,
   type MutableRefObject,
   type ReactNode,
@@ -25,7 +26,7 @@ type ShopContextValue = {
   wishlist: WishlistState;
   cartCount: number;
   wishlistCount: number;
-  addToCart: (productId: string, quantity?: number) => Promise<void>;
+  addToCart: (productId: string, quantity?: number) => Promise<boolean>;
   removeFromCart: (productId: string) => Promise<void>;
   updateQuantity: (productId: string, quantity: number) => Promise<void>;
   toggleWishlist: (productId: string) => void;
@@ -50,6 +51,19 @@ function applyApiCartToRefs(
   lineIdsRef.current = lines;
   cartRef.current = next;
   setCart(next);
+}
+
+async function resyncCartFromServer(
+  setCart: Dispatch<SetStateAction<CartState>>,
+  cartRef: MutableRefObject<CartState>,
+  lineIdsRef: MutableRefObject<Record<string, string>>
+) {
+  try {
+    const r = await cartApi.get();
+    if (r.success && r.data) applyApiCartToRefs(r.data, setCart, cartRef, lineIdsRef);
+  } catch {
+    /* leave optimistic state */
+  }
 }
 
 export function ShopProvider({ children }: { children: ReactNode }) {
@@ -77,7 +91,9 @@ export function ShopProvider({ children }: { children: ReactNode }) {
         const res = await cartApi.get();
         if (cancelled) return;
         if (res.success && res.data) {
-          applyApiCartToRefs(res.data, setCart, cartRef, lineIdsRef);
+          startTransition(() => {
+            if (!cancelled) applyApiCartToRefs(res.data, setCart, cartRef, lineIdsRef);
+          });
         }
       } catch {
         /* keep existing cart state */
@@ -99,16 +115,44 @@ export function ShopProvider({ children }: { children: ReactNode }) {
           cartRef.current = next;
           return next;
         });
-        return;
+        return true;
       }
-      const nextQty = (cartRef.current[productId] ?? 0) + quantity;
+
+      const prevQty = cartRef.current[productId] ?? 0;
+      const nextQty = prevQty + quantity;
+      setCart((prev) => {
+        const next = { ...prev, [productId]: nextQty };
+        cartRef.current = next;
+        return next;
+      });
+
       try {
         const res = await cartApi.add(productId, nextQty);
         if (res.success && res.data) {
-          applyApiCartToRefs(res.data, setCart, cartRef, lineIdsRef);
+          const data = res.data;
+          startTransition(() => {
+            applyApiCartToRefs(data, setCart, cartRef, lineIdsRef);
+          });
+          return true;
         }
+        setCart((prev) => {
+          const next = { ...prev };
+          if (prevQty < 1) delete next[productId];
+          else next[productId] = prevQty;
+          cartRef.current = next;
+          return next;
+        });
+        return false;
       } catch {
-        /* failed — do not update UI */
+        setCart((prev) => {
+          const next = { ...prev };
+          if (prevQty < 1) delete next[productId];
+          else next[productId] = prevQty;
+          cartRef.current = next;
+          return next;
+        });
+        await resyncCartFromServer(setCart, cartRef, lineIdsRef);
+        return false;
       }
     },
     [isAuthenticated]
@@ -125,16 +169,34 @@ export function ShopProvider({ children }: { children: ReactNode }) {
         });
         return;
       }
-      const lineId = lineIdsRef.current[productId];
-      if (!lineId) return;
+
+      let lineId = lineIdsRef.current[productId];
+      if (!lineId) {
+        await resyncCartFromServer(setCart, cartRef, lineIdsRef);
+        lineId = lineIdsRef.current[productId];
+        if (!lineId) return;
+      }
+
+      const prevCart = { ...cartRef.current };
+      const prevLineIds = { ...lineIdsRef.current };
+
+      setCart((prev) => {
+        const next = { ...prev };
+        delete next[productId];
+        cartRef.current = next;
+        return next;
+      });
+      const lr = { ...lineIdsRef.current };
+      delete lr[productId];
+      lineIdsRef.current = lr;
+
       try {
         await cartApi.removeItem(lineId);
-        const res = await cartApi.get();
-        if (res.success && res.data) {
-          applyApiCartToRefs(res.data, setCart, cartRef, lineIdsRef);
-        }
       } catch {
-        /* */
+        cartRef.current = prevCart;
+        lineIdsRef.current = prevLineIds;
+        setCart(prevCart);
+        await resyncCartFromServer(setCart, cartRef, lineIdsRef);
       }
     },
     [isAuthenticated]
@@ -172,6 +234,28 @@ export function ShopProvider({ children }: { children: ReactNode }) {
           return;
         }
       }
+      if (!lineId && quantity >= 1) return;
+
+      const prevCart = { ...cartRef.current };
+      const prevLineIds = { ...lineIdsRef.current };
+
+      if (quantity < 1) {
+        setCart((prev) => {
+          const next = { ...prev };
+          delete next[productId];
+          cartRef.current = next;
+          return next;
+        });
+        const lr = { ...lineIdsRef.current };
+        delete lr[productId];
+        lineIdsRef.current = lr;
+      } else {
+        setCart((prev) => {
+          const next = { ...prev, [productId]: quantity };
+          cartRef.current = next;
+          return next;
+        });
+      }
 
       try {
         if (quantity < 1) {
@@ -179,12 +263,11 @@ export function ShopProvider({ children }: { children: ReactNode }) {
         } else if (lineId) {
           await cartApi.updateItem(lineId, quantity);
         }
-        const res = await cartApi.get();
-        if (res.success && res.data) {
-          applyApiCartToRefs(res.data, setCart, cartRef, lineIdsRef);
-        }
       } catch {
-        /* */
+        cartRef.current = prevCart;
+        lineIdsRef.current = prevLineIds;
+        setCart(prevCart);
+        await resyncCartFromServer(setCart, cartRef, lineIdsRef);
       }
     },
     [isAuthenticated]
@@ -206,12 +289,15 @@ export function ShopProvider({ children }: { children: ReactNode }) {
 
   const moveToCart = useCallback(
     async (productId: string) => {
-      await addToCart(productId, 1);
       setWishlist((prev) => {
         const next = new Set(prev);
         next.delete(productId);
         return next;
       });
+      const ok = await addToCart(productId, 1);
+      if (!ok) {
+        setWishlist((prev) => new Set(prev).add(productId));
+      }
     },
     [addToCart]
   );

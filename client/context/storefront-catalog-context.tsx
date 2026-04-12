@@ -7,6 +7,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  startTransition,
   type ReactNode,
 } from "react";
 import { productApi } from "@/api/product.api";
@@ -41,8 +42,10 @@ export function StorefrontCatalogProvider({ children }: { children: ReactNode })
         if (cancelled) return;
         if (res.success && res.data) {
           const mapped = res.data.filter((p) => p.active).map(apiProductToShopProduct);
-          setProducts(mapped);
-          setApiCatalog(mapped);
+          startTransition(() => {
+            setProducts(mapped);
+            setApiCatalog(mapped);
+          });
         } else {
           setError(true);
         }
