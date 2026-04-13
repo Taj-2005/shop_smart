@@ -9,7 +9,7 @@ on:
     paths: ["server/**", "client/**", "e2e/**", ".github/workflows/e2e-tests.yml"]
 
 env:
-  DOTENV: ${{ secrets.DOTENV }}
+  SHOPSMART_ENV: ${{ secrets.SHOPSMART_ENV }}
 
 jobs:
   e2e:
@@ -18,10 +18,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Write .env files
+      - name: Write .env files from SHOPSMART_ENV
         run: |
-          printf '%s\n' "${DOTENV}" > server/.env
-          printf '%s\n' "${DOTENV}" > client/.env
+          test -n "${SHOPSMART_ENV}" || { echo "SHOPSMART_ENV secret is not set"; exit 1; }
+          echo "${SHOPSMART_ENV}" | jq -e 'type == "object" and (.server|type == "string") and (.client|type == "string")' >/dev/null
+          echo "${SHOPSMART_ENV}" | jq -r '.server' > server/.env
+          echo "${SHOPSMART_ENV}" | jq -r '.client' > client/.env
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -64,6 +66,7 @@ jobs:
         run: |
           set -a
           source server/.env
+          source client/.env
           set +a
           (cd server && npm run start) &
           sleep 3

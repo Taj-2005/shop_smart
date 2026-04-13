@@ -1,4 +1,6 @@
 resource "aws_ecr_repository" "server" {
+  count = var.create_repositories ? 1 : 0
+
   name                 = "${var.name}-server"
   image_tag_mutability = "MUTABLE"
 
@@ -8,6 +10,8 @@ resource "aws_ecr_repository" "server" {
 }
 
 resource "aws_ecr_repository" "client" {
+  count = var.create_repositories ? 1 : 0
+
   name                 = "${var.name}-client"
   image_tag_mutability = "MUTABLE"
 
@@ -16,8 +20,24 @@ resource "aws_ecr_repository" "client" {
   }
 }
 
+data "aws_ecr_repository" "server" {
+  count = var.create_repositories ? 0 : 1
+  name  = "${var.name}-server"
+}
+
+data "aws_ecr_repository" "client" {
+  count = var.create_repositories ? 0 : 1
+  name  = "${var.name}-client"
+}
+
+locals {
+  server_repo_name = var.create_repositories ? aws_ecr_repository.server[0].name : data.aws_ecr_repository.server[0].name
+  client_repo_name = var.create_repositories ? aws_ecr_repository.client[0].name : data.aws_ecr_repository.client[0].name
+}
+
 resource "aws_ecr_lifecycle_policy" "server" {
-  repository = aws_ecr_repository.server.name
+  repository = local.server_repo_name
+
   policy = jsonencode({
     rules = [{
       rulePriority = 1
@@ -33,7 +53,8 @@ resource "aws_ecr_lifecycle_policy" "server" {
 }
 
 resource "aws_ecr_lifecycle_policy" "client" {
-  repository = aws_ecr_repository.client.name
+  repository = local.client_repo_name
+
   policy = jsonencode({
     rules = [{
       rulePriority = 1

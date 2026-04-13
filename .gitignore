@@ -54,6 +54,7 @@ client/.env
 client/.env.*
 server/.env
 server/.env.*
+shopsmart-env.json
 
 # =========================
 # Editor & tooling

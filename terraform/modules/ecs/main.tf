@@ -1,3 +1,16 @@
+locals {
+  # Minimal HTTP listeners so the first `terraform apply` passes ALB health checks
+  # before CI deploys real images (task definition updates are owned by CI afterward).
+  api_bootstrap_cmd = [
+    "node", "-e",
+    "require('http').createServer((q,s)=>{s.statusCode=200;s.end('ok');}).listen(4000,'0.0.0.0');"
+  ]
+  web_bootstrap_cmd = [
+    "node", "-e",
+    "require('http').createServer((q,s)=>{s.statusCode=200;s.end('ok');}).listen(3000,'0.0.0.0');"
+  ]
+}
+
 resource "aws_ecs_cluster" "this" {
   name = "${var.name}-cluster"
 
@@ -29,6 +42,7 @@ resource "aws_ecs_task_definition" "api" {
   container_definitions = jsonencode([{
     name      = "api"
     image     = var.server_container_image
+    command   = local.api_bootstrap_cmd
     essential = true
     portMappings = [{
       containerPort = var.server_container_port
@@ -43,6 +57,10 @@ resource "aws_ecs_task_definition" "api" {
       }
     }
   }])
+
+  lifecycle {
+    ignore_changes = [container_definitions]
+  }
 }
 
 resource "aws_ecs_task_definition" "client" {
@@ -57,6 +75,7 @@ resource "aws_ecs_task_definition" "client" {
   container_definitions = jsonencode([{
     name      = "web"
     image     = var.client_container_image
+    command   = local.web_bootstrap_cmd
     essential = true
     portMappings = [{
       containerPort = var.client_container_port
@@ -71,6 +90,10 @@ resource "aws_ecs_task_definition" "client" {
       }
     }
   }])
+
+  lifecycle {
+    ignore_changes = [container_definitions]
+  }
 }
 
 resource "aws_ecs_service" "api" {
@@ -79,6 +102,16 @@ resource "aws_ecs_service" "api" {
   task_definition = aws_ecs_task_definition.api.arn
   desired_count   = var.desired_count_api
   launch_type     = "FARGATE"
+
+  deployment_minimum_healthy_percent = 100
+  deployment_maximum_percent         = 200
+
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
+  }
+
+  health_check_grace_period_seconds = 90
 
   network_configuration {
     subnets          = var.subnet_ids
@@ -91,6 +124,10 @@ resource "aws_ecs_service" "api" {
     container_name   = "api"
     container_port   = var.server_container_port
   }
+
+  lifecycle {
+    ignore_changes = [task_definition]
+  }
 }
 
 resource "aws_ecs_service" "client" {
@@ -99,6 +136,16 @@ resource "aws_ecs_service" "client" {
   task_definition = aws_ecs_task_definition.client.arn
   desired_count   = var.desired_count_client
   launch_type     = "FARGATE"
+
+  deployment_minimum_healthy_percent = 100
+  deployment_maximum_percent         = 200
+
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
+  }
+
+  health_check_grace_period_seconds = 90
 
   network_configuration {
     subnets          = var.subnet_ids
@@ -110,5 +157,9 @@ resource "aws_ecs_service" "client" {
     target_group_arn = var.client_target_group_arn
     container_name   = "web"
     container_port   = var.client_container_port
+  }
+
+  lifecycle {
+    ignore_changes = [task_definition]
   }
 }

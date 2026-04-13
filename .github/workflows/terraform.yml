@@ -1,0 +1,163 @@
+# Terraform: validate on PR/push; manual plan or apply from Actions.
+#
+# workflow_dispatch:
+#   plan  — init (local state), terraform plan (needs AWS for data sources / refresh).
+#   apply — requires confirm "APPLY"; runs plan to tfplan then terraform apply -auto-approve.
+#           Without a remote S3 backend, state lives only on the runner: repeat applies can
+#           conflict. Prefer `terraform apply` locally with persisted state, or add backend "s3"
+#           and init -backend-config=... for CI.
+#
+# Secrets for plan/apply: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+# Optional: AWS_SESSION_TOKEN
+#
+# AWS Academy / restricted accounts:
+#   - ECR "already exists": run with "Reuse existing ECR repos" = true (or set repo var TF_CREATE_ECR_REPOS=false).
+#   - iam:CreateRole denied: run with "Skip IAM role creation" = true and paste execution + task role ARNs
+#     (LabRole may be used for both if it has ECS task execution + trust for ecs-tasks.amazonaws.com).
+
+name: Terraform
+
+on:
+  pull_request:
+    paths:
+      - "terraform/**"
+      - ".github/workflows/terraform.yml"
+  push:
+    branches: [main, develop]
+    paths:
+      - "terraform/**"
+      - ".github/workflows/terraform.yml"
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "plan = read-only; apply = plan then apply (requires confirm)"
+        type: choice
+        default: plan
+        options:
+          - plan
+          - apply
+      confirm:
+        description: 'For apply: type exactly APPLY (anything else skips apply and fails)'
+        type: string
+        required: false
+        default: ""
+      reuse_existing_ecr_repositories:
+        description: "Do not create ECR repos; use existing {project}-{env}-server / -client (fixes RepositoryAlreadyExists)"
+        type: boolean
+        default: false
+      skip_iam_role_creation:
+        description: "Do not create IAM roles; use ARNs below (fixes iam:CreateRole AccessDenied in labs)"
+        type: boolean
+        default: false
+      external_ecs_execution_role_arn:
+        description: "Required if skipping IAM: ECS execution role ARN (ecs-tasks.amazonaws.com trust + ECR/logs)"
+        type: string
+        default: ""
+      external_ecs_task_role_arn:
+        description: "Required if skipping IAM: ECS task role ARN"
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+jobs:
+  validate:
+    name: Format and validate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.0"
+          terraform_wrapper: false
+
+      - name: Terraform format (check)
+        run: terraform fmt -check -recursive
+
+      - name: Terraform init (no remote backend)
+        run: terraform init -backend=false -input=false
+
+      - name: Terraform validate
+        run: terraform validate
+
+  plan_or_apply:
+    name: Plan / apply (manual)
+    needs: [validate]
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Guard — apply requires confirmation
+        if: inputs.action == 'apply' && inputs.confirm != 'APPLY'
+        run: |
+          echo "::error::For action \"apply\", set the \"confirm\" input to APPLY (all caps)."
+          exit 1
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.0"
+          terraform_wrapper: false
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform variable overrides (dispatch + repo vars)
+        run: |
+          set -euo pipefail
+          create_ecr="true"
+          create_iam="true"
+          if [ -n "${VAR_CREATE_ECR_REPOS}" ]; then create_ecr="${VAR_CREATE_ECR_REPOS}"; fi
+          if [ -n "${VAR_CREATE_IAM_ROLES}" ]; then create_iam="${VAR_CREATE_IAM_ROLES}"; fi
+          if [ "${REUSE_ECR}" = "true" ]; then create_ecr="false"; fi
+          if [ "${SKIP_IAM}" = "true" ]; then create_iam="false"; fi
+          echo "TF_VAR_create_ecr_repositories=${create_ecr}" >> "$GITHUB_ENV"
+          echo "TF_VAR_create_iam_roles=${create_iam}" >> "$GITHUB_ENV"
+          ext_exec="${EXT_EXEC_INPUT:-${VAR_EXT_EXEC:-}}"
+          ext_task="${EXT_TASK_INPUT:-${VAR_EXT_TASK:-}}"
+          if [ -n "${ext_exec}" ]; then
+            echo "TF_VAR_external_ecs_execution_role_arn=${ext_exec}" >> "$GITHUB_ENV"
+          fi
+          if [ -n "${ext_task}" ]; then
+            echo "TF_VAR_external_ecs_task_role_arn=${ext_task}" >> "$GITHUB_ENV"
+          fi
+        env:
+          REUSE_ECR: ${{ inputs.reuse_existing_ecr_repositories }}
+          SKIP_IAM: ${{ inputs.skip_iam_role_creation }}
+          EXT_EXEC_INPUT: ${{ inputs.external_ecs_execution_role_arn }}
+          EXT_TASK_INPUT: ${{ inputs.external_ecs_task_role_arn }}
+          VAR_CREATE_ECR_REPOS: ${{ vars.TF_CREATE_ECR_REPOS }}
+          VAR_CREATE_IAM_ROLES: ${{ vars.TF_CREATE_IAM_ROLES }}
+          VAR_EXT_EXEC: ${{ vars.TF_EXTERNAL_ECS_EXECUTION_ROLE_ARN }}
+          VAR_EXT_TASK: ${{ vars.TF_EXTERNAL_ECS_TASK_ROLE_ARN }}
+
+      - name: Terraform init (no remote backend)
+        run: terraform init -backend=false -input=false
+
+      - name: Terraform plan
+        if: inputs.action == 'plan'
+        run: terraform plan -no-color -input=false
+
+      - name: Terraform plan (saved, for apply)
+        if: inputs.action == 'apply'
+        run: terraform plan -no-color -input=false -out=tfplan
+
+      - name: Terraform apply
+        if: inputs.action == 'apply' && inputs.confirm == 'APPLY'
+        run: terraform apply -no-color -input=false -auto-approve tfplan

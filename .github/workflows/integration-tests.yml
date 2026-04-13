@@ -9,7 +9,7 @@ on:
     paths: ["server/**", ".github/workflows/integration-tests.yml"]
 
 env:
-  DOTENV: ${{ secrets.DOTENV }}
+  SHOPSMART_ENV: ${{ secrets.SHOPSMART_ENV }}
 
 jobs:
   server-integration:
@@ -21,8 +21,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Write .env file
-        run: printf '%s\n' "${DOTENV}" > .env
+      - name: Write .env from SHOPSMART_ENV
+        run: |
+          test -n "${SHOPSMART_ENV}" || { echo "SHOPSMART_ENV secret is not set"; exit 1; }
+          echo "${SHOPSMART_ENV}" | jq -e '.server | type == "string"' >/dev/null
+          echo "${SHOPSMART_ENV}" | jq -r '.server' > .env
 
       - name: Setup Node
         uses: actions/setup-node@v4
