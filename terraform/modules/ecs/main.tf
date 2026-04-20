@@ -88,76 +88,9 @@ resource "aws_ecs_task_definition" "client" {
   }
 }
 
-resource "aws_ecs_service" "api" {
-  name            = "${var.name}-api"
-  cluster         = aws_ecs_cluster.this.id
-  task_definition = aws_ecs_task_definition.api.arn
-  desired_count   = var.desired_count_api
-  launch_type     = "FARGATE"
-
-  deployment_minimum_healthy_percent = 100
-  deployment_maximum_percent         = 200
-
-  deployment_circuit_breaker {
-    enable   = true
-    rollback = true
-  }
-
-  health_check_grace_period_seconds = 90
-
-  network_configuration {
-    subnets          = var.subnet_ids
-    security_groups  = [var.ecs_api_security_group_id]
-    assign_public_ip = true
-  }
-
-  dynamic "load_balancer" {
-    for_each = var.enable_load_balancer ? [1] : []
-    content {
-      target_group_arn = var.api_target_group_arn
-      container_name   = "api"
-      container_port   = var.server_container_port
-    }
-  }
-
-  lifecycle {
-    ignore_changes = [task_definition]
-  }
-}
-
-resource "aws_ecs_service" "client" {
-  name            = "${var.name}-client"
-  cluster         = aws_ecs_cluster.this.id
-  task_definition = aws_ecs_task_definition.client.arn
-  desired_count   = var.desired_count_client
-  launch_type     = "FARGATE"
-
-  deployment_minimum_healthy_percent = 100
-  deployment_maximum_percent         = 200
-
-  deployment_circuit_breaker {
-    enable   = true
-    rollback = true
-  }
-
-  health_check_grace_period_seconds = 90
-
-  network_configuration {
-    subnets          = var.subnet_ids
-    security_groups  = [var.ecs_client_security_group_id]
-    assign_public_ip = true
-  }
-
-  dynamic "load_balancer" {
-    for_each = var.enable_load_balancer ? [1] : []
-    content {
-      target_group_arn = var.client_target_group_arn
-      container_name   = "web"
-      container_port   = var.client_container_port
-    }
-  }
-
-  lifecycle {
-    ignore_changes = [task_definition]
-  }
-}
+## NOTE:
+## ECS services are intentionally not managed by Terraform in this repo.
+## In AWS Academy accounts (and when running Terraform without a remote backend),
+## repeated applies can fail on CreateService idempotency errors if a prior service
+## exists in a transient INACTIVE/DELETING state. The GitHub Actions deploy workflows
+## handle create-or-update of services idempotently via AWS CLI.

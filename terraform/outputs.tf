@@ -23,16 +23,6 @@ output "ecs_cluster_name" {
   description = "ECS cluster hosting API and client services."
 }
 
-output "ecs_api_service_name" {
-  value       = module.ecs.api_service_name
-  description = "ECS service name for the API."
-}
-
-output "ecs_client_service_name" {
-  value       = module.ecs.client_service_name
-  description = "ECS service name for the web app."
-}
-
 output "ecs_api_task_definition_family" {
   value       = module.ecs.api_task_definition_family
   description = "Task definition family for the API (used when registering new revisions in CI)."
