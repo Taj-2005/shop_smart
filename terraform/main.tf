@@ -39,13 +39,14 @@ locals {
   subnet_ids = slice(data.aws_subnets.default.ids, 0, 2)
 }
 
-module "security" {
-  source = "./modules/security"
+data "aws_security_group" "ecs_api" {
+  vpc_id = local.vpc_id
+  name   = "${local.name}-ecs-api"
+}
 
-  name                  = local.name
-  vpc_id                = local.vpc_id
-  server_container_port = var.server_container_port
-  client_container_port = var.client_container_port
+data "aws_security_group" "ecs_client" {
+  vpc_id = local.vpc_id
+  name   = "${local.name}-ecs-client"
 }
 
 module "ecr" {
@@ -61,8 +62,8 @@ module "ecs" {
   name                         = local.name
   aws_region                   = var.aws_region
   subnet_ids                   = local.subnet_ids
-  ecs_api_security_group_id    = module.security.ecs_api_security_group_id
-  ecs_client_security_group_id = module.security.ecs_client_security_group_id
+  ecs_api_security_group_id    = data.aws_security_group.ecs_api.id
+  ecs_client_security_group_id = data.aws_security_group.ecs_client.id
   execution_role_arn           = local.ecs_execution_role_arn
   task_role_arn                = local.ecs_task_role_arn
   server_container_image       = var.server_container_image
