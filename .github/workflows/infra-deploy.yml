@@ -11,6 +11,10 @@ env:
   DEPLOY_ENV: ${{ vars.DEPLOY_ENV || 'dev' }}
   AWS_REGION: ${{ secrets.AWS_REGION }}
   INFRA_NAME: ${{ format('{0}-{1}', vars.PROJECT_NAME || 'shopsmart', vars.DEPLOY_ENV || 'dev') }}
+  # AWS Academy: avoid iam:CreateRole by using an existing role (e.g. LabRole)
+  TF_VAR_create_iam_roles: "false"
+  TF_VAR_external_ecs_execution_role_arn: ${{ vars.LABROLE_ARN }}
+  TF_VAR_external_ecs_task_role_arn: ${{ vars.LABROLE_ARN }}
 
 jobs:
   infra_and_deploy:

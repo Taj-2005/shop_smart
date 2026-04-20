@@ -63,6 +63,10 @@ permissions:
 
 env:
   AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+  # AWS Academy: default to reusing LabRole if provided via repo variables.
+  TF_VAR_create_iam_roles: ${{ vars.LABROLE_ARN && 'false' || '' }}
+  TF_VAR_external_ecs_execution_role_arn: ${{ vars.LABROLE_ARN || '' }}
+  TF_VAR_external_ecs_task_role_arn: ${{ vars.LABROLE_ARN || '' }}
 
 jobs:
   validate:
