@@ -135,25 +135,15 @@ jobs:
 
       - name: Write runtime .env files from GitHub Secrets
         env:
-          SHOPSMART_SERVER_ENV: ${{ secrets.SHOPSMART_SERVER_ENV }}
-          SHOPSMART_CLIENT_ENV: ${{ secrets.SHOPSMART_CLIENT_ENV }}
           SHOPSMART_ENV: ${{ secrets.SHOPSMART_ENV }}
         run: |
           set -euo pipefail
 
           mkdir -p server client
 
-          if [ -n "${SHOPSMART_SERVER_ENV:-}" ] && [ -n "${SHOPSMART_CLIENT_ENV:-}" ]; then
-            printf '%s\n' "${SHOPSMART_SERVER_ENV}" > server/.env
-            printf '%s\n' "${SHOPSMART_CLIENT_ENV}" > client/.env
-          elif [ -n "${SHOPSMART_ENV:-}" ]; then
-            echo "Using legacy SHOPSMART_ENV for both server/.env and client/.env"
-            printf '%s\n' "${SHOPSMART_ENV}" > server/.env
-            printf '%s\n' "${SHOPSMART_ENV}" > client/.env
-          else
-            echo "Missing secrets. Set SHOPSMART_SERVER_ENV + SHOPSMART_CLIENT_ENV (recommended) or SHOPSMART_ENV (legacy)."
-            exit 1
-          fi
+          test -n "${SHOPSMART_ENV:-}" || { echo "Missing required secret: SHOPSMART_ENV"; exit 1; }
+          printf '%s\n' "${SHOPSMART_ENV}" > server/.env
+          printf '%s\n' "${SHOPSMART_ENV}" > client/.env
 
       - name: Resolve NEXT_PUBLIC_API_URL for client build (from client/.env)
         id: api
