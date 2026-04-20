@@ -178,32 +178,8 @@ jobs:
                 container_port="3000"
                 log_group="/ecs/${INFRA_NAME}-client"
               fi
-              cat > /tmp/td.json <<-EOF
-              	{
-              	  "family": "${family}",
-              	  "networkMode": "awsvpc",
-              	  "requiresCompatibilities": ["FARGATE"],
-              	  "cpu": "512",
-              	  "memory": "1024",
-              	  "executionRoleArn": "${LABROLE_ARN}",
-              	  "taskRoleArn": "${LABROLE_ARN}",
-              	  "containerDefinitions": [{
-              	    "name": "${container_name}",
-              	    "image": "${image}",
-              	    "essential": true,
-              	    "portMappings": [{"containerPort": ${container_port}, "protocol": "tcp"}],
-              	    "environment": ${ENV_JSON},
-              	    "logConfiguration": {
-              	      "logDriver": "awslogs",
-              	      "options": {
-              	        "awslogs-group": "${log_group}",
-              	        "awslogs-region": "${AWS_REGION}",
-              	        "awslogs-stream-prefix": "${container_name}"
-              	      }
-              	    }
-              	  }]
-              	}
-              	EOF
+              python3 -c 'import json, os; family=os.environ["FAMILY"]; image=os.environ["IMAGE"]; env=json.loads(os.environ["ENV_JSON"]); name=os.environ["CONTAINER_NAME"]; port=int(os.environ["CONTAINER_PORT"]); lg=os.environ["LOG_GROUP"]; region=os.environ["AWS_REGION"]; role=os.environ["LABROLE_ARN"]; td={"family":family,"networkMode":"awsvpc","requiresCompatibilities":["FARGATE"],"cpu":"512","memory":"1024","executionRoleArn":role,"taskRoleArn":role,"containerDefinitions":[{"name":name,"image":image,"essential":True,"portMappings":[{"containerPort":port,"protocol":"tcp"}],"environment":env,"logConfiguration":{"logDriver":"awslogs","options":{"awslogs-group":lg,"awslogs-region":region,"awslogs-stream-prefix":name}}}]}; open("/tmp/td.json","w").write(json.dumps(td))' \
+                FAMILY="${family}" IMAGE="${image}" ENV_JSON="${ENV_JSON}" CONTAINER_NAME="${container_name}" CONTAINER_PORT="${container_port}" LOG_GROUP="${log_group}"
             fi
             aws ecs register-task-definition --cli-input-json file:///tmp/td.json > /tmp/reg.json
             ARN=$(jq -r '.taskDefinition.taskDefinitionArn' /tmp/reg.json)
