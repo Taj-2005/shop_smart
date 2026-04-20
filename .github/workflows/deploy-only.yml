@@ -190,7 +190,8 @@ jobs:
                 container_port="3000"
                 log_group="/ecs/${INFRA_NAME}-client"
               fi
-              python3 -c 'import json,sys,os; env=json.loads(sys.argv[1]); family=os.environ["FAMILY"]; image=os.environ["IMAGE"]; name=os.environ["CONTAINER_NAME"]; port=int(os.environ["CONTAINER_PORT"]); lg=os.environ["LOG_GROUP"]; region=os.environ["AWS_REGION"]; role=os.environ["LABROLE_ARN"]; td={"family":family,"networkMode":"awsvpc","requiresCompatibilities":["FARGATE"],"cpu":"512","memory":"1024","executionRoleArn":role,"taskRoleArn":role,"containerDefinitions":[{"name":name,"image":image,"essential":True,"portMappings":[{"containerPort":port,"protocol":"tcp"}],"environment":env,"logConfiguration":{"logDriver":"awslogs","options":{"awslogs-group":lg,"awslogs-region":region,"awslogs-stream-prefix":name}}}]}; open("/tmp/td.json","w").write(json.dumps(td))' "${ENV_JSON}" \
+              printf '%s' "${ENV_JSON}" > /tmp/env_bootstrap.json
+              python3 -c 'import json,os; env=json.load(open("/tmp/env_bootstrap.json")); family=os.environ["FAMILY"]; image=os.environ["IMAGE"]; name=os.environ["CONTAINER_NAME"]; port=int(os.environ["CONTAINER_PORT"]); lg=os.environ["LOG_GROUP"]; region=os.environ["AWS_REGION"]; role=os.environ["LABROLE_ARN"]; td={"family":family,"networkMode":"awsvpc","requiresCompatibilities":["FARGATE"],"cpu":"512","memory":"1024","executionRoleArn":role,"taskRoleArn":role,"containerDefinitions":[{"name":name,"image":image,"essential":True,"portMappings":[{"containerPort":port,"protocol":"tcp"}],"environment":env,"logConfiguration":{"logDriver":"awslogs","options":{"awslogs-group":lg,"awslogs-region":region,"awslogs-stream-prefix":name}}}]}; open("/tmp/td.json","w").write(json.dumps(td))' \
                 FAMILY="${family}" IMAGE="${image}" CONTAINER_NAME="${container_name}" CONTAINER_PORT="${container_port}" LOG_GROUP="${log_group}"
             fi
 
