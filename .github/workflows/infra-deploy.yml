@@ -241,7 +241,7 @@ jobs:
 
             if aws ecs describe-task-definition --task-definition "${family}" >/dev/null 2>&1; then
               TD=$(aws ecs describe-task-definition --task-definition "${family}" --query taskDefinition --output json)
-              echo "${TD}" | jq --arg IMG "${image}" --argfile ENV /tmp/env.json '
+              echo "${TD}" | jq --arg IMG "${image}" --rawfile ENV /tmp/env.json '
                 del(
                   .taskDefinitionArn,
                   .revision,
@@ -256,7 +256,7 @@ jobs:
                 | walk(if type == "object" then with_entries(select(.value != null)) else . end)
                 | .requiresCompatibilities = ["FARGATE"]
                 | .containerDefinitions[0].image = $IMG
-                | .containerDefinitions[0].environment = $ENV
+                | .containerDefinitions[0].environment = ($ENV | fromjson)
                 | .containerDefinitions[0] |= del(.command)
               ' > /tmp/td.json
             else
