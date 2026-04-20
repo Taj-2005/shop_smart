@@ -157,8 +157,9 @@ jobs:
             test -f "${envfile}" || { echo "Missing env file: ${envfile}"; exit 1; }
             # Build ECS env list JSON: [{name,value}, ...] from the .env file ONLY
             ENV_JSON=$(python3 .github/scripts/dotenv_to_ecs_env.py "${envfile}")
-            echo "ENV_JSON(${envfile})=${ENV_JSON}"
-            echo "${ENV_JSON}" | jq -e 'type=="array" and all(.[]; type=="object" and has("name") and has("value"))' >/dev/null
+            # Debug without leaking secret values
+            echo "ENV_JSON(${envfile}) count=$(printf '%s' "${ENV_JSON}" | jq -r 'length') keys=$(printf '%s' "${ENV_JSON}" | jq -r '.[].name' | paste -sd, -)"
+            printf '%s' "${ENV_JSON}" | jq -e 'type=="array" and all(.[]; type=="object" and has("name") and has("value"))' >/dev/null
 
             if aws ecs describe-task-definition --task-definition "${family}" >/dev/null 2>&1; then
               TD=$(aws ecs describe-task-definition --task-definition "${family}" --query taskDefinition --output json)

@@ -29,7 +29,8 @@ def main() -> None:
         out.append({"name": key, "value": val})
     if not isinstance(out, list):
         raise SystemExit("Internal error: output is not a list")
-    json.dump(out, sys.stdout)
+    json.dump(out, sys.stdout, separators=(",", ":"))
+    sys.stdout.write("\n")
 
 
 if __name__ == "__main__":
