@@ -177,16 +177,28 @@ jobs:
           set -euo pipefail
 
           VPC_ID=$(aws ec2 describe-vpcs --filters Name=isDefault,Values=true --query 'Vpcs[0].VpcId' --output text)
+          test -n "${VPC_ID}" && test "${VPC_ID}" != "None" || { echo "Could not resolve default VPC id"; exit 1; }
+
           SUBNET_IDS=$(aws ec2 describe-subnets --filters Name=vpc-id,Values="${VPC_ID}" --query 'Subnets[].SubnetId' --output text)
           SUBNET_A=$(echo "${SUBNET_IDS}" | awk '{print $1}')
           SUBNET_B=$(echo "${SUBNET_IDS}" | awk '{print $2}')
+          test -n "${SUBNET_A}" && test "${SUBNET_A}" != "None" || { echo "Could not resolve any subnets in default VPC ${VPC_ID}"; exit 1; }
+          if [ -z "${SUBNET_B:-}" ] || [ "${SUBNET_B}" = "None" ]; then
+            SUBNET_B="${SUBNET_A}"
+          fi
 
           API_SG=$(aws ec2 describe-security-groups --filters Name=vpc-id,Values="${VPC_ID}" Name=group-name,Values="${INFRA_NAME}-ecs-api" --query 'SecurityGroups[0].GroupId' --output text)
           WEB_SG=$(aws ec2 describe-security-groups --filters Name=vpc-id,Values="${VPC_ID}" Name=group-name,Values="${INFRA_NAME}-ecs-client" --query 'SecurityGroups[0].GroupId' --output text)
+          test -n "${API_SG}" && test "${API_SG}" != "None" || { echo "Missing security group: ${INFRA_NAME}-ecs-api (in ${VPC_ID})"; exit 1; }
+          test -n "${WEB_SG}" && test "${WEB_SG}" != "None" || { echo "Missing security group: ${INFRA_NAME}-ecs-client (in ${VPC_ID})"; exit 1; }
 
           ensure_service() {
             local service="$1" family="$2" container="$3" port="$4" sg="$5"
-            aws ecs describe-services --cluster "${INFRA_NAME}-cluster" --services "${service}" --query 'services[0].status' --output text 2>/dev/null | grep -q "ACTIVE" && return 0
+            local status
+            status="$(aws ecs describe-services --cluster "${INFRA_NAME}-cluster" --services "${service}" --query 'services[0].status' --output text 2>/dev/null || true)"
+            if [ "${status}" = "ACTIVE" ]; then
+              return 0
+            fi
             aws ecs create-service \
               --cluster "${INFRA_NAME}-cluster" \
               --service-name "${service}" \
@@ -202,6 +214,7 @@ jobs:
             test -f "${envfile}" || { echo "Missing env file: ${envfile}"; exit 1; }
             # Build ECS env list JSON: [{name,value}, ...] from the .env file ONLY
             ENV_JSON=$(python3 .github/scripts/dotenv_to_ecs_env.py "${envfile}")
+            printf '%s' "${ENV_JSON}" > /tmp/env.json
             # Debug without leaking secret values
             echo "ENV_JSON(${envfile}) count=$(printf '%s' "${ENV_JSON}" | jq -r 'length') keys=$(printf '%s' "${ENV_JSON}" | jq -r '.[].name' | paste -sd, -)"
             echo "Validating ENV_JSON(${envfile})..."
@@ -214,7 +227,7 @@ jobs:
 
             if aws ecs describe-task-definition --task-definition "${family}" >/dev/null 2>&1; then
               TD=$(aws ecs describe-task-definition --task-definition "${family}" --query taskDefinition --output json)
-              echo "${TD}" | jq --arg IMG "${image}" --argjson ENV "${ENV_JSON}" '
+              echo "${TD}" | jq --arg IMG "${image}" --slurpfile ENV /tmp/env.json '
                 del(
                   .taskDefinitionArn,
                   .revision,
@@ -229,7 +242,7 @@ jobs:
                 | walk(if type == "object" then with_entries(select(.value != null)) else . end)
                 | .requiresCompatibilities = ["FARGATE"]
                 | .containerDefinitions[0].image = $IMG
-                | .containerDefinitions[0].environment = $ENV
+                | .containerDefinitions[0].environment = $ENV[0]
                 | .containerDefinitions[0] |= del(.command)
               ' > /tmp/td.json
             else
