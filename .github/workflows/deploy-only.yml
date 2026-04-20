@@ -178,32 +178,32 @@ jobs:
                 container_port="3000"
                 log_group="/ecs/${INFRA_NAME}-client"
               fi
-              cat > /tmp/td.json <<EOF
-              {
-                "family": "${family}",
-                "networkMode": "awsvpc",
-                "requiresCompatibilities": ["FARGATE"],
-                "cpu": "512",
-                "memory": "1024",
-                "executionRoleArn": "${LABROLE_ARN}",
-                "taskRoleArn": "${LABROLE_ARN}",
-                "containerDefinitions": [{
-                  "name": "${container_name}",
-                  "image": "${image}",
-                  "essential": true,
-                  "portMappings": [{"containerPort": ${container_port}, "protocol": "tcp"}],
-                  "environment": ${ENV_JSON},
-                  "logConfiguration": {
-                    "logDriver": "awslogs",
-                    "options": {
-                      "awslogs-group": "${log_group}",
-                      "awslogs-region": "${AWS_REGION}",
-                      "awslogs-stream-prefix": "${container_name}"
-                    }
-                  }
-                }]
-              }
-              EOF
+              cat > /tmp/td.json <<-EOF
+              	{
+              	  "family": "${family}",
+              	  "networkMode": "awsvpc",
+              	  "requiresCompatibilities": ["FARGATE"],
+              	  "cpu": "512",
+              	  "memory": "1024",
+              	  "executionRoleArn": "${LABROLE_ARN}",
+              	  "taskRoleArn": "${LABROLE_ARN}",
+              	  "containerDefinitions": [{
+              	    "name": "${container_name}",
+              	    "image": "${image}",
+              	    "essential": true,
+              	    "portMappings": [{"containerPort": ${container_port}, "protocol": "tcp"}],
+              	    "environment": ${ENV_JSON},
+              	    "logConfiguration": {
+              	      "logDriver": "awslogs",
+              	      "options": {
+              	        "awslogs-group": "${log_group}",
+              	        "awslogs-region": "${AWS_REGION}",
+              	        "awslogs-stream-prefix": "${container_name}"
+              	      }
+              	    }
+              	  }]
+              	}
+              	EOF
             fi
             aws ecs register-task-definition --cli-input-json file:///tmp/td.json > /tmp/reg.json
             ARN=$(jq -r '.taskDefinition.taskDefinitionArn' /tmp/reg.json)
