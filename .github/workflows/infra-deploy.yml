@@ -31,29 +31,12 @@ jobs:
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Resolve or create LabRole for ECS
-        env:
-          LABROLE_ARN_INPUT: ${{ vars.LABROLE_ARN }}
+      - name: Resolve LabRole ARN (no repo vars)
         run: |
           set -euo pipefail
-
-          ROLE_ARN="${LABROLE_ARN_INPUT:-}"
-
-          if [ -n "${ROLE_ARN}" ] && aws iam get-role --role-name "$(basename "${ROLE_ARN}")" >/dev/null 2>&1; then
-            echo "Using existing role: ${ROLE_ARN}"
-          else
-            ROLE_NAME="${INFRA_NAME}-labrole"
-            echo "Creating/using role: ${ROLE_NAME}"
-
-            if ! aws iam get-role --role-name "${ROLE_NAME}" >/dev/null 2>&1; then
-              python3 -c 'import json; trust={"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"ecs-tasks.amazonaws.com"},"Action":"sts:AssumeRole"}]}; open("/tmp/trust.json","w").write(json.dumps(trust))'
-              aws iam create-role --role-name "${ROLE_NAME}" --assume-role-policy-document file:///tmp/trust.json >/dev/null
-            fi
-
-            aws iam attach-role-policy --role-name "${ROLE_NAME}" --policy-arn "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy" >/dev/null 2>&1 || true
-            ROLE_ARN=$(aws iam get-role --role-name "${ROLE_NAME}" --query 'Role.Arn' --output text)
-          fi
-
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          aws iam get-role --role-name "LabRole" >/dev/null 2>&1 || { echo "LabRole not found in this account"; exit 1; }
+          ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/LabRole"
           echo "LABROLE_ARN=${ROLE_ARN}" >> "$GITHUB_ENV"
           echo "TF_VAR_labrole_arn=${ROLE_ARN}" >> "$GITHUB_ENV"
 
@@ -85,8 +68,6 @@ jobs:
         run: terraform apply -no-color -input=false -auto-approve tfplan
 
       - name: Bootstrap minimal ECS infra if missing (idempotent)
-        env:
-          LABROLE_ARN: ${{ vars.LABROLE_ARN }}
         run: |
           set -euo pipefail
 
@@ -218,9 +199,11 @@ jobs:
 
           register_deploy() {
             local family="$1" image="$2" envfile="$3" service="$4"
+            test -f "${envfile}" || { echo "Missing env file: ${envfile}"; exit 1; }
+            # Build ECS env list JSON: [{name,value}, ...] from the .env file ONLY
             ENV_JSON=$(python3 .github/scripts/dotenv_to_ecs_env.py "${envfile}")
-            # Normalize to ECS format: [{name,value}, ...]
-            ENV_JSON=$(python3 -c 'import json,sys; x=json.load(sys.stdin); sys.stdout.write(json.dumps(x if isinstance(x,list) else ([{"name":k,"value":str(v)} for k,v in x.items()] if isinstance(x,dict) else (_ for _ in ()).throw(SystemExit("Invalid ENV_JSON")))))' <<<"${ENV_JSON}")
+            echo "ENV_JSON(${envfile})=${ENV_JSON}"
+            echo "${ENV_JSON}" | jq -e 'type=="array" and all(.[]; type=="object" and has("name") and has("value"))' >/dev/null
 
             if aws ecs describe-task-definition --task-definition "${family}" >/dev/null 2>&1; then
               TD=$(aws ecs describe-task-definition --task-definition "${family}" --query taskDefinition --output json)
@@ -252,8 +235,8 @@ jobs:
                 container_port="3000"
                 log_group="/ecs/${INFRA_NAME}-client"
               fi
-              python3 -c 'import json, os; family=os.environ["FAMILY"]; image=os.environ["IMAGE"]; env=json.loads(os.environ["ENV_JSON"]); name=os.environ["CONTAINER_NAME"]; port=int(os.environ["CONTAINER_PORT"]); lg=os.environ["LOG_GROUP"]; region=os.environ["AWS_REGION"]; role=os.environ["LABROLE_ARN"]; td={"family":family,"networkMode":"awsvpc","requiresCompatibilities":["FARGATE"],"cpu":"512","memory":"1024","executionRoleArn":role,"taskRoleArn":role,"containerDefinitions":[{"name":name,"image":image,"essential":True,"portMappings":[{"containerPort":port,"protocol":"tcp"}],"environment":env,"logConfiguration":{"logDriver":"awslogs","options":{"awslogs-group":lg,"awslogs-region":region,"awslogs-stream-prefix":name}}}]}; open("/tmp/td.json","w").write(json.dumps(td))' \
-                FAMILY="${family}" IMAGE="${image}" ENV_JSON="${ENV_JSON}" CONTAINER_NAME="${container_name}" CONTAINER_PORT="${container_port}" LOG_GROUP="${log_group}"
+              python3 -c 'import json,sys,os; env=json.loads(sys.argv[1]); family=os.environ["FAMILY"]; image=os.environ["IMAGE"]; name=os.environ["CONTAINER_NAME"]; port=int(os.environ["CONTAINER_PORT"]); lg=os.environ["LOG_GROUP"]; region=os.environ["AWS_REGION"]; role=os.environ["LABROLE_ARN"]; td={"family":family,"networkMode":"awsvpc","requiresCompatibilities":["FARGATE"],"cpu":"512","memory":"1024","executionRoleArn":role,"taskRoleArn":role,"containerDefinitions":[{"name":name,"image":image,"essential":True,"portMappings":[{"containerPort":port,"protocol":"tcp"}],"environment":env,"logConfiguration":{"logDriver":"awslogs","options":{"awslogs-group":lg,"awslogs-region":region,"awslogs-stream-prefix":name}}}]}; open("/tmp/td.json","w").write(json.dumps(td))' "${ENV_JSON}" \
+                FAMILY="${family}" IMAGE="${image}" CONTAINER_NAME="${container_name}" CONTAINER_PORT="${container_port}" LOG_GROUP="${log_group}"
             fi
             aws ecs register-task-definition --cli-input-json file:///tmp/td.json > /tmp/reg.json
             ARN=$(jq -r '.taskDefinition.taskDefinitionArn' /tmp/reg.json)

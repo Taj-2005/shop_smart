@@ -6,7 +6,14 @@ from pathlib import Path
 
 
 def main() -> None:
-    text = Path(sys.argv[1]).read_text(encoding="utf-8")
+    if len(sys.argv) != 2:
+        raise SystemExit("Usage: dotenv_to_ecs_env.py <path-to-.env>")
+
+    path = Path(sys.argv[1])
+    if not path.exists():
+        raise SystemExit(f"Env file not found: {path}")
+
+    text = path.read_text(encoding="utf-8")
     out: list[dict[str, str]] = []
     for line in text.splitlines():
         s = line.strip()
@@ -20,6 +27,8 @@ def main() -> None:
         if len(val) >= 2 and val[0] == val[-1] and val[0] in "\"'":
             val = val[1:-1]
         out.append({"name": key, "value": val})
+    if not isinstance(out, list):
+        raise SystemExit("Internal error: output is not a list")
     json.dump(out, sys.stdout)
 
 
