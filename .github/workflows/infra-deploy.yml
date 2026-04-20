@@ -133,6 +133,28 @@ jobs:
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
 
+      - name: Write runtime .env files from GitHub Secrets
+        env:
+          SHOPSMART_SERVER_ENV: ${{ secrets.SHOPSMART_SERVER_ENV }}
+          SHOPSMART_CLIENT_ENV: ${{ secrets.SHOPSMART_CLIENT_ENV }}
+          SHOPSMART_ENV: ${{ secrets.SHOPSMART_ENV }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p server client
+
+          if [ -n "${SHOPSMART_SERVER_ENV:-}" ] && [ -n "${SHOPSMART_CLIENT_ENV:-}" ]; then
+            printf '%s\n' "${SHOPSMART_SERVER_ENV}" > server/.env
+            printf '%s\n' "${SHOPSMART_CLIENT_ENV}" > client/.env
+          elif [ -n "${SHOPSMART_ENV:-}" ]; then
+            echo "Using legacy SHOPSMART_ENV for both server/.env and client/.env"
+            printf '%s\n' "${SHOPSMART_ENV}" > server/.env
+            printf '%s\n' "${SHOPSMART_ENV}" > client/.env
+          else
+            echo "Missing secrets. Set SHOPSMART_SERVER_ENV + SHOPSMART_CLIENT_ENV (recommended) or SHOPSMART_ENV (legacy)."
+            exit 1
+          fi
+
       - name: Resolve NEXT_PUBLIC_API_URL for client build (from client/.env)
         id: api
         run: |
@@ -227,7 +249,7 @@ jobs:
 
             if aws ecs describe-task-definition --task-definition "${family}" >/dev/null 2>&1; then
               TD=$(aws ecs describe-task-definition --task-definition "${family}" --query taskDefinition --output json)
-              echo "${TD}" | jq --arg IMG "${image}" --slurpfile ENV /tmp/env.json '
+              echo "${TD}" | jq --arg IMG "${image}" --argfile ENV /tmp/env.json '
                 del(
                   .taskDefinitionArn,
                   .revision,
@@ -242,7 +264,7 @@ jobs:
                 | walk(if type == "object" then with_entries(select(.value != null)) else . end)
                 | .requiresCompatibilities = ["FARGATE"]
                 | .containerDefinitions[0].image = $IMG
-                | .containerDefinitions[0].environment = $ENV[0]
+                | .containerDefinitions[0].environment = $ENV
                 | .containerDefinitions[0] |= del(.command)
               ' > /tmp/td.json
             else
