@@ -20,16 +20,6 @@ resource "aws_ecs_cluster" "this" {
   }
 }
 
-resource "aws_cloudwatch_log_group" "api" {
-  name              = "/ecs/${var.name}-api"
-  retention_in_days = 14
-}
-
-resource "aws_cloudwatch_log_group" "client" {
-  name              = "/ecs/${var.name}-client"
-  retention_in_days = 14
-}
-
 resource "aws_ecs_task_definition" "api" {
   family                   = "${var.name}-api"
   network_mode             = "awsvpc"
@@ -51,9 +41,10 @@ resource "aws_ecs_task_definition" "api" {
     logConfiguration = {
       logDriver = "awslogs"
       options = {
-        "awslogs-group"         = aws_cloudwatch_log_group.api.name
+        "awslogs-group"         = "/ecs/${var.name}-api"
         "awslogs-region"        = var.aws_region
         "awslogs-stream-prefix" = "api"
+        "awslogs-create-group"  = "true"
       }
     }
   }])
@@ -84,9 +75,10 @@ resource "aws_ecs_task_definition" "client" {
     logConfiguration = {
       logDriver = "awslogs"
       options = {
-        "awslogs-group"         = aws_cloudwatch_log_group.client.name
+        "awslogs-group"         = "/ecs/${var.name}-client"
         "awslogs-region"        = var.aws_region
         "awslogs-stream-prefix" = "web"
+        "awslogs-create-group"  = "true"
       }
     }
   }])
