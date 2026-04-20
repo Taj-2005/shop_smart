@@ -1,10 +1,10 @@
 output "vpc_id" {
-  value       = module.network.vpc_id
+  value       = local.vpc_id
   description = "VPC for ECS and the load balancer."
 }
 
 output "public_subnet_ids" {
-  value       = module.network.public_subnet_ids
+  value       = local.subnet_ids
   description = "Public subnets used by the load balancer and Fargate tasks."
 }
 
@@ -45,7 +45,7 @@ output "ecs_client_task_definition_family" {
 
 output "alb_dns_name" {
   value       = module.alb.dns_name
-  description = "API: http://<dns>/ (port 80). Web: http://<dns>:8080/"
+  description = "Public ALB DNS name (web on /, API on /api/*)."
 }
 
 output "public_api_base_url_parameter_name" {

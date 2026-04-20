@@ -23,7 +23,19 @@ data "aws_availability_zones" "available" {
 
 data "aws_caller_identity" "current" {}
 
+data "aws_vpc" "default" {
+  default = true
+}
+
+data "aws_subnets" "default" {
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.default.id]
+  }
+}
+
 module "network" {
+  count  = var.use_default_vpc ? 0 : 1
   source = "./modules/network"
 
   name               = local.name
@@ -31,11 +43,16 @@ module "network" {
   availability_zones = slice(data.aws_availability_zones.available.names, 0, 2)
 }
 
+locals {
+  vpc_id     = var.use_default_vpc ? data.aws_vpc.default.id : module.network[0].vpc_id
+  subnet_ids = var.use_default_vpc ? slice(data.aws_subnets.default.ids, 0, 2) : module.network[0].public_subnet_ids
+}
+
 module "security" {
   source = "./modules/security"
 
   name                  = local.name
-  vpc_id                = module.network.vpc_id
+  vpc_id                = local.vpc_id
   server_container_port = var.server_container_port
   client_container_port = var.client_container_port
 }
@@ -58,8 +75,8 @@ module "alb" {
   source = "./modules/alb"
 
   name                     = local.name
-  vpc_id                   = module.network.vpc_id
-  subnet_ids               = module.network.public_subnet_ids
+  vpc_id                   = local.vpc_id
+  subnet_ids               = local.subnet_ids
   alb_security_group_id    = module.security.alb_security_group_id
   server_container_port    = var.server_container_port
   client_container_port    = var.client_container_port
@@ -74,7 +91,7 @@ module "ecs" {
 
   name                         = local.name
   aws_region                   = var.aws_region
-  subnet_ids                   = module.network.public_subnet_ids
+  subnet_ids                   = local.subnet_ids
   ecs_api_security_group_id    = module.security.ecs_api_security_group_id
   ecs_client_security_group_id = module.security.ecs_client_security_group_id
   execution_role_arn           = local.ecs_execution_role_arn

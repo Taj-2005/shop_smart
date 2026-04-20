@@ -22,6 +22,12 @@ variable "vpc_cidr" {
   default     = "10.0.0.0/16"
 }
 
+variable "use_default_vpc" {
+  type        = bool
+  description = "If true, deploy into the AWS account's default VPC/subnets (no VPC creation). Recommended for AWS Academy quota-limited accounts."
+  default     = true
+}
+
 variable "server_container_image" {
   type        = string
   description = "Bootstrap image for the API task (must support the ECS module bootstrap command until CI deploys)."
