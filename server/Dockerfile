@@ -12,7 +12,6 @@ RUN npm ci
 # Build application
 COPY tsconfig*.json ./
 COPY src ./src
-COPY public ./public
 RUN npm run build
 
 # Keep only production dependencies for runtime image
@@ -32,7 +31,6 @@ RUN groupadd -r nodejs && useradd -r -g nodejs nodejs
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/public ./public
 
 # App default port
 EXPOSE 4000
