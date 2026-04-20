@@ -1,0 +1,38 @@
+name: PR lint
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  semantic_pr_title:
+    name: Enforce semantic PR title
+    runs-on: ubuntu-latest
+    # Skip for draft PRs; they often have WIP titles.
+    if: ${{ github.event.pull_request.draft == false }}
+    steps:
+      - name: Validate PR title
+        uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # Conventional Commits types commonly used in this repo.
+          types: |
+            feat
+            fix
+            chore
+            docs
+            refactor
+            test
+            build
+            ci
+            perf
+            revert
+          requireScope: false
+          # Allow "feat!: ..." style breaking changes.
+          allowBreakingChanges: true
+

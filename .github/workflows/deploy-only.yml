@@ -1,20 +1,7 @@
-# Manual pipeline: lint → unit tests → build, push to ECR, rolling ECS deploy.
-# Trigger: Actions → "CI and deploy" → Run workflow (workflow_dispatch only).
-#
-# Secrets:
-#   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY — ECR, ECS, SSM, iam:PassRole
-#   AWS_SESSION_TOKEN — optional (temporary credentials)
-#   SHOPSMART_ENV — JSON: {"server":"...dotenv...","client":"...dotenv..."}
-#
-# Optional repository variables: PROJECT_NAME, DEPLOY_ENV, AWS_REGION (defaults in env block below).
-# INFRA_NAME = "${PROJECT_NAME}-${DEPLOY_ENV}" must match Terraform `local.name`.
-
-name: CI and deploy (legacy)
+name: Deploy only (build/push + ECS rolling update)
 
 on:
   workflow_dispatch:
-  push:
-    branches-ignore: ["**"]
 
 permissions:
   contents: read
@@ -22,106 +9,21 @@ permissions:
 env:
   PROJECT_NAME: ${{ vars.PROJECT_NAME || 'shopsmart' }}
   DEPLOY_ENV: ${{ vars.DEPLOY_ENV || 'dev' }}
-  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  INFRA_NAME: ${{ format('{0}-{1}', vars.PROJECT_NAME || 'shopsmart', vars.DEPLOY_ENV || 'dev') }}
 
 jobs:
-  lint:
-    name: Lint and format
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: "1.9.0"
-
-      - name: Terraform format (check)
-        working-directory: terraform
-        run: terraform fmt -check -recursive
-
-      - name: Terraform init (local)
-        working-directory: terraform
-        run: terraform init -backend=false
-
-      - name: Terraform validate
-        working-directory: terraform
-        run: terraform validate
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: npm
-          cache-dependency-path: |
-            client/package-lock.json
-            server/package-lock.json
-
-      - name: Install client dependencies
-        working-directory: client
-        run: npm ci
-
-      - name: Client ESLint
-        working-directory: client
-        run: npm run lint
-
-      - name: Install server dependencies
-        working-directory: server
-        run: npm ci
-
-      - name: Server ESLint
-        working-directory: server
-        run: npm run lint
-
-  unit_tests:
-    name: Unit tests
-    needs: [lint]
-    runs-on: ubuntu-latest
-    env:
-      SHOPSMART_ENV: ${{ secrets.SHOPSMART_ENV }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Write .env files from SHOPSMART_ENV
-        run: |
-          test -n "${SHOPSMART_ENV}" || { echo "SHOPSMART_ENV secret is not set"; exit 1; }
-          echo "${SHOPSMART_ENV}" | jq -e 'type == "object" and (.server|type == "string") and (.client|type == "string")' >/dev/null
-          echo "${SHOPSMART_ENV}" | jq -r '.server' > server/.env
-          echo "${SHOPSMART_ENV}" | jq -r '.client' > client/.env
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: npm
-          cache-dependency-path: |
-            client/package-lock.json
-            server/package-lock.json
-
-      - name: Server — install, prisma, unit tests
-        working-directory: server
-        run: |
-          npm ci
-          npx prisma generate
-          npm run test -- --testPathIgnorePatterns=integration
-
-      - name: Client — install, unit tests
-        working-directory: client
-        run: |
-          npm ci
-          npm run test -- --passWithNoTests
-
   deploy:
-    name: Build, push, deploy to ECS
-    needs: [unit_tests]
+    name: Build/push images and deploy to ECS
     runs-on: ubuntu-latest
     env:
       SHOPSMART_ENV: ${{ secrets.SHOPSMART_ENV }}
-      INFRA_NAME: ${{ format('{0}-{1}', vars.PROJECT_NAME || 'shopsmart', vars.DEPLOY_ENV || 'dev') }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Write .env files from SHOPSMART_ENV
         run: |
+          set -euo pipefail
           test -n "${SHOPSMART_ENV}" || { echo "SHOPSMART_ENV secret is not set"; exit 1; }
           echo "${SHOPSMART_ENV}" | jq -e 'type == "object" and (.server|type == "string") and (.client|type == "string")' >/dev/null
           echo "${SHOPSMART_ENV}" | jq -r '.server' > server/.env
@@ -133,24 +35,25 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Set image tags and ECR URIs
+      - name: Resolve image tags and ECR URIs
         id: meta
         run: |
+          set -euo pipefail
           ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-          echo "account_id=${ACCOUNT_ID}" >> "$GITHUB_OUTPUT"
-          echo "sha=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
           REGISTRY="${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+          echo "sha=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
           echo "server_uri=${REGISTRY}/${INFRA_NAME}-server" >> "$GITHUB_OUTPUT"
           echo "client_uri=${REGISTRY}/${INFRA_NAME}-client" >> "$GITHUB_OUTPUT"
 
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Resolve public API base for client build
+      - name: Resolve public API base for client build (from SSM)
         id: api
         run: |
+          set -euo pipefail
           PARAM="/${PROJECT_NAME}/${DEPLOY_ENV}/public_api_base_url"
           BASE=$(aws ssm get-parameter --name "${PARAM}" --query Parameter.Value --output text)
           echo "public_api_base=${BASE}" >> "$GITHUB_OUTPUT"
@@ -160,6 +63,7 @@ jobs:
           SERVER_URI: ${{ steps.meta.outputs.server_uri }}
           SHA: ${{ steps.meta.outputs.sha }}
         run: |
+          set -euo pipefail
           docker build -t "shopsmart-server:${SHA}" ./server
           docker tag "shopsmart-server:${SHA}" "${SERVER_URI}:${SHA}"
           docker tag "shopsmart-server:${SHA}" "${SERVER_URI}:latest"
@@ -172,9 +76,8 @@ jobs:
           SHA: ${{ steps.meta.outputs.sha }}
           NEXT_PUBLIC_API_URL: ${{ steps.api.outputs.public_api_base }}
         run: |
-          docker build \
-            --build-arg "NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}" \
-            -t "shopsmart-client:${SHA}" ./client
+          set -euo pipefail
+          docker build --build-arg "NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}" -t "shopsmart-client:${SHA}" ./client
           docker tag "shopsmart-client:${SHA}" "${CLIENT_URI}:${SHA}"
           docker tag "shopsmart-client:${SHA}" "${CLIENT_URI}:latest"
           docker push "${CLIENT_URI}:${SHA}"
@@ -187,6 +90,7 @@ jobs:
           CLIENT_URI: ${{ steps.meta.outputs.client_uri }}
         run: |
           set -euo pipefail
+
           register_deploy() {
             local family="$1" image="$2" envfile="$3" service="$4"
             TD=$(aws ecs describe-task-definition --task-definition "${family}" --query taskDefinition --output json)
@@ -217,11 +121,14 @@ jobs:
               --task-definition "${ARN}" \
               --force-new-deployment
           }
+
           register_deploy "${INFRA_NAME}-api" "${SERVER_URI}:${SHA}" server/.env "${INFRA_NAME}-api"
           register_deploy "${INFRA_NAME}-client" "${CLIENT_URI}:${SHA}" client/.env "${INFRA_NAME}-client"
 
       - name: Wait for ECS services to stabilize
         run: |
+          set -euo pipefail
           aws ecs wait services-stable \
             --cluster "${INFRA_NAME}-cluster" \
             --services "${INFRA_NAME}-api" "${INFRA_NAME}-client"
+

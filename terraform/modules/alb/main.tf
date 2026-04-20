@@ -42,24 +42,29 @@ resource "aws_lb_target_group" "client" {
   }
 }
 
-resource "aws_lb_listener" "api" {
+resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.this.arn
   port              = 80
   protocol          = "HTTP"
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.api.arn
+    target_group_arn = aws_lb_target_group.client.arn
   }
 }
 
-resource "aws_lb_listener" "client" {
-  load_balancer_arn = aws_lb.this.arn
-  port              = 8080
-  protocol          = "HTTP"
+resource "aws_lb_listener_rule" "api_path" {
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 10
 
-  default_action {
+  action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.client.arn
+    target_group_arn = aws_lb_target_group.api.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/api/*"]
+    }
   }
 }
