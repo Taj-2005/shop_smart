@@ -159,7 +159,13 @@ jobs:
             ENV_JSON=$(python3 .github/scripts/dotenv_to_ecs_env.py "${envfile}")
             # Debug without leaking secret values
             echo "ENV_JSON(${envfile}) count=$(printf '%s' "${ENV_JSON}" | jq -r 'length') keys=$(printf '%s' "${ENV_JSON}" | jq -r '.[].name' | paste -sd, -)"
-            printf '%s' "${ENV_JSON}" | jq -e 'type=="array" and all(.[]; type=="object" and has("name") and has("value"))' >/dev/null
+            echo "Validating ENV_JSON(${envfile})..."
+            if ! printf '%s' "${ENV_JSON}" | jq -e 'type=="array" and all(.[]; type=="object" and has("name") and has("value") and (.name|type=="string") and (.value|type=="string"))' >/dev/null; then
+              echo "Invalid ENV_JSON shape for ${envfile} (expected array of {name,value} strings)."
+              echo "type=$(printf '%s' "${ENV_JSON}" | jq -r 'type' 2>/dev/null || echo 'parse_error')"
+              exit 1
+            fi
+            echo "ENV_JSON(${envfile}) OK"
 
             if aws ecs describe-task-definition --task-definition "${family}" >/dev/null 2>&1; then
               TD=$(aws ecs describe-task-definition --task-definition "${family}" --query taskDefinition --output json)
