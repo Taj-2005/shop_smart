@@ -142,8 +142,10 @@ jobs:
           mkdir -p server client
 
           test -n "${SHOPSMART_ENV:-}" || { echo "Missing required secret: SHOPSMART_ENV"; exit 1; }
-          printf '%s\n' "${SHOPSMART_ENV}" > server/.env
-          printf '%s\n' "${SHOPSMART_ENV}" > client/.env
+          # Expected format matches other workflows: {"server":"<dotenv>","client":"<dotenv>"}
+          echo "${SHOPSMART_ENV}" | jq -e 'type=="object" and (.server|type=="string") and (.client|type=="string")' >/dev/null
+          echo "${SHOPSMART_ENV}" | jq -r '.server' > server/.env
+          echo "${SHOPSMART_ENV}" | jq -r '.client' > client/.env
 
       - name: Resolve NEXT_PUBLIC_API_URL for client build (from client/.env)
         id: api
