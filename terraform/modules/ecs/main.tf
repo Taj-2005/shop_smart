@@ -119,10 +119,13 @@ resource "aws_ecs_service" "api" {
     assign_public_ip = true
   }
 
-  load_balancer {
-    target_group_arn = var.api_target_group_arn
-    container_name   = "api"
-    container_port   = var.server_container_port
+  dynamic "load_balancer" {
+    for_each = var.enable_load_balancer ? [1] : []
+    content {
+      target_group_arn = var.api_target_group_arn
+      container_name   = "api"
+      container_port   = var.server_container_port
+    }
   }
 
   lifecycle {
@@ -153,10 +156,13 @@ resource "aws_ecs_service" "client" {
     assign_public_ip = true
   }
 
-  load_balancer {
-    target_group_arn = var.client_target_group_arn
-    container_name   = "web"
-    container_port   = var.client_container_port
+  dynamic "load_balancer" {
+    for_each = var.enable_load_balancer ? [1] : []
+    content {
+      target_group_arn = var.client_target_group_arn
+      container_name   = "web"
+      container_port   = var.client_container_port
+    }
   }
 
   lifecycle {

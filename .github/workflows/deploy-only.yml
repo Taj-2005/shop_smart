@@ -50,13 +50,24 @@ jobs:
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Resolve public API base for client build (from SSM)
+      - name: Ensure ECR repos exist (idempotent)
+        env:
+          SERVER_REPO: ${{ env.INFRA_NAME }}-server
+          CLIENT_REPO: ${{ env.INFRA_NAME }}-client
+        run: |
+          set -euo pipefail
+          aws ecr describe-repositories --repository-names "$SERVER_REPO" >/dev/null 2>&1 || aws ecr create-repository --repository-name "$SERVER_REPO" >/dev/null
+          aws ecr describe-repositories --repository-names "$CLIENT_REPO" >/dev/null 2>&1 || aws ecr create-repository --repository-name "$CLIENT_REPO" >/dev/null
+
+      - name: Resolve NEXT_PUBLIC_API_URL for client build (from client/.env)
         id: api
         run: |
           set -euo pipefail
-          PARAM="/${PROJECT_NAME}/${DEPLOY_ENV}/public_api_base_url"
-          BASE=$(aws ssm get-parameter --name "${PARAM}" --query Parameter.Value --output text)
-          echo "public_api_base=${BASE}" >> "$GITHUB_OUTPUT"
+          set -a
+          source client/.env
+          set +a
+          test -n "${NEXT_PUBLIC_API_URL:-}" || { echo "NEXT_PUBLIC_API_URL is missing in client/.env"; exit 1; }
+          echo "public_api_base=${NEXT_PUBLIC_API_URL}" >> "$GITHUB_OUTPUT"
 
       - name: Build and push server image
         env:
@@ -88,33 +99,121 @@ jobs:
           SHA: ${{ steps.meta.outputs.sha }}
           SERVER_URI: ${{ steps.meta.outputs.server_uri }}
           CLIENT_URI: ${{ steps.meta.outputs.client_uri }}
+          LABROLE_ARN: ${{ vars.LABROLE_ARN }}
         run: |
           set -euo pipefail
 
+          VPC_ID=$(aws ec2 describe-vpcs --filters Name=isDefault,Values=true --query 'Vpcs[0].VpcId' --output text)
+          SUBNET_IDS=$(aws ec2 describe-subnets --filters Name=vpc-id,Values="${VPC_ID}" --query 'Subnets[].SubnetId' --output text)
+          SUBNET_A=$(echo "${SUBNET_IDS}" | awk '{print $1}')
+          SUBNET_B=$(echo "${SUBNET_IDS}" | awk '{print $2}')
+
+          ensure_sg() {
+            local name="$1" port="$2"
+            SG_ID=$(aws ec2 describe-security-groups \
+              --filters Name=vpc-id,Values="${VPC_ID}" Name=group-name,Values="${name}" \
+              --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null || true)
+            if [ -z "${SG_ID}" ] || [ "${SG_ID}" = "None" ]; then
+              SG_ID=$(aws ec2 create-security-group --vpc-id "${VPC_ID}" --group-name "${name}" --description "${name}" --query GroupId --output text)
+            fi
+            aws ec2 authorize-security-group-ingress --group-id "${SG_ID}" --protocol tcp --port "${port}" --cidr 0.0.0.0/0 2>/dev/null || true
+            aws ec2 authorize-security-group-egress --group-id "${SG_ID}" --ip-permissions '[{"IpProtocol":"-1","IpRanges":[{"CidrIp":"0.0.0.0/0"}]}]' 2>/dev/null || true
+            echo "${SG_ID}"
+          }
+
+          API_SG=$(ensure_sg "${INFRA_NAME}-ecs-api" "4000")
+          WEB_SG=$(ensure_sg "${INFRA_NAME}-ecs-client" "3000")
+
+          aws ecs describe-clusters --clusters "${INFRA_NAME}-cluster" --query 'clusters[0].clusterArn' --output text >/dev/null 2>&1 \
+            || aws ecs create-cluster --cluster-name "${INFRA_NAME}-cluster" >/dev/null
+
+          for LG in "/ecs/${INFRA_NAME}-api" "/ecs/${INFRA_NAME}-client"; do
+            aws logs describe-log-groups --log-group-name-prefix "${LG}" --query 'logGroups[?logGroupName==`'"${LG}"'`].logGroupName' --output text | grep -q "${LG}" \
+              || aws logs create-log-group --log-group-name "${LG}" >/dev/null
+          done
+
+          ensure_service() {
+            local service="$1" family="$2" sg="$3"
+            aws ecs describe-services --cluster "${INFRA_NAME}-cluster" --services "${service}" --query 'services[0].status' --output text 2>/dev/null | grep -q "ACTIVE" && return 0
+            aws ecs create-service \
+              --cluster "${INFRA_NAME}-cluster" \
+              --service-name "${service}" \
+              --task-definition "${family}" \
+              --desired-count 1 \
+              --launch-type FARGATE \
+              --network-configuration "awsvpcConfiguration={subnets=[${SUBNET_A},${SUBNET_B}],securityGroups=[${sg}],assignPublicIp=ENABLED}" \
+              >/dev/null
+          }
+
           register_deploy() {
             local family="$1" image="$2" envfile="$3" service="$4"
-            TD=$(aws ecs describe-task-definition --task-definition "${family}" --query taskDefinition --output json)
             ENV_JSON=$(python3 .github/scripts/dotenv_to_ecs_env.py "${envfile}")
-            echo "${TD}" | jq --arg IMG "${image}" --argjson ENV "${ENV_JSON}" '
-              del(
-                .taskDefinitionArn,
-                .revision,
-                .status,
-                .requiresAttributes,
-                .compatibilities,
-                .registeredAt,
-                .registeredBy,
-                .deregisteredAt,
-                .enableFaultInjection
-              )
-              | walk(if type == "object" then with_entries(select(.value != null)) else . end)
-              | .requiresCompatibilities = ["FARGATE"]
-              | .containerDefinitions[0].image = $IMG
-              | .containerDefinitions[0].environment = $ENV
-              | .containerDefinitions[0] |= del(.command)
-            ' > /tmp/td.json
+
+            if aws ecs describe-task-definition --task-definition "${family}" >/dev/null 2>&1; then
+              TD=$(aws ecs describe-task-definition --task-definition "${family}" --query taskDefinition --output json)
+              echo "${TD}" | jq --arg IMG "${image}" --argjson ENV "${ENV_JSON}" '
+                del(
+                  .taskDefinitionArn,
+                  .revision,
+                  .status,
+                  .requiresAttributes,
+                  .compatibilities,
+                  .registeredAt,
+                  .registeredBy,
+                  .deregisteredAt,
+                  .enableFaultInjection
+                )
+                | walk(if type == "object" then with_entries(select(.value != null)) else . end)
+                | .requiresCompatibilities = ["FARGATE"]
+                | .containerDefinitions[0].image = $IMG
+                | .containerDefinitions[0].environment = $ENV
+                | .containerDefinitions[0] |= del(.command)
+              ' > /tmp/td.json
+            else
+              local container_name="api"
+              local container_port="4000"
+              local log_group="/ecs/${INFRA_NAME}-api"
+              if [ "${family}" = "${INFRA_NAME}-client" ]; then
+                container_name="web"
+                container_port="3000"
+                log_group="/ecs/${INFRA_NAME}-client"
+              fi
+              cat > /tmp/td.json <<EOF
+              {
+                "family": "${family}",
+                "networkMode": "awsvpc",
+                "requiresCompatibilities": ["FARGATE"],
+                "cpu": "512",
+                "memory": "1024",
+                "executionRoleArn": "${LABROLE_ARN}",
+                "taskRoleArn": "${LABROLE_ARN}",
+                "containerDefinitions": [{
+                  "name": "${container_name}",
+                  "image": "${image}",
+                  "essential": true,
+                  "portMappings": [{"containerPort": ${container_port}, "protocol": "tcp"}],
+                  "environment": ${ENV_JSON},
+                  "logConfiguration": {
+                    "logDriver": "awslogs",
+                    "options": {
+                      "awslogs-group": "${log_group}",
+                      "awslogs-region": "${AWS_REGION}",
+                      "awslogs-stream-prefix": "${container_name}"
+                    }
+                  }
+                }]
+              }
+              EOF
+            fi
             aws ecs register-task-definition --cli-input-json file:///tmp/td.json > /tmp/reg.json
             ARN=$(jq -r '.taskDefinition.taskDefinitionArn' /tmp/reg.json)
+
+            if [ "${service}" = "${INFRA_NAME}-api" ]; then
+              ensure_service "${service}" "${family}" "${API_SG}"
+            else
+              ensure_service "${service}" "${family}" "${WEB_SG}"
+            fi
+
             aws ecs update-service \
               --cluster "${INFRA_NAME}-cluster" \
               --service "${service}" \

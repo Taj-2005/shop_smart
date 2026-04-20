@@ -26,12 +26,22 @@ variable "task_role_arn" {
   type = string
 }
 
+variable "enable_load_balancer" {
+  type        = bool
+  description = "If true, attach ECS services to load balancer target groups."
+  default     = false
+}
+
 variable "api_target_group_arn" {
-  type = string
+  type        = string
+  description = "ALB target group ARN for the API service (required when enable_load_balancer is true)."
+  default     = ""
 }
 
 variable "client_target_group_arn" {
-  type = string
+  type        = string
+  description = "ALB target group ARN for the client service (required when enable_load_balancer is true)."
+  default     = ""
 }
 
 variable "server_container_image" {

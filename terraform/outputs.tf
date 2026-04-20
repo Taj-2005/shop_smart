@@ -1,11 +1,11 @@
 output "vpc_id" {
   value       = local.vpc_id
-  description = "VPC for ECS and the load balancer."
+  description = "Default VPC used by ECS."
 }
 
 output "public_subnet_ids" {
   value       = local.subnet_ids
-  description = "Public subnets used by the load balancer and Fargate tasks."
+  description = "Default VPC subnets used by Fargate tasks."
 }
 
 output "ecr_server_repository_url" {
@@ -43,14 +43,9 @@ output "ecs_client_task_definition_family" {
   description = "Task definition family for the web app."
 }
 
-output "alb_dns_name" {
-  value       = module.alb.dns_name
-  description = "Public ALB DNS name (web on /, API on /api/*)."
-}
-
-output "public_api_base_url_parameter_name" {
-  value       = aws_ssm_parameter.public_api_base_url.name
-  description = "SSM parameter written by Terraform; CI reads this for NEXT_PUBLIC_API_URL."
+output "public_endpoints_note" {
+  value       = "No ALB is provisioned. ECS tasks run with public IPs; retrieve task public IPs from the ECS console and use http://<client-task-ip>:3000 and http://<api-task-ip>:4000"
+  description = "How to access the services when deploying without a load balancer."
 }
 
 output "ecs_execution_role_arn" {

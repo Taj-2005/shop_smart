@@ -16,16 +16,9 @@ variable "environment" {
   default     = "dev"
 }
 
-variable "vpc_cidr" {
+variable "labrole_arn" {
   type        = string
-  description = "CIDR for the VPC."
-  default     = "10.0.0.0/16"
-}
-
-variable "use_default_vpc" {
-  type        = bool
-  description = "If true, deploy into the AWS account's default VPC/subnets (no VPC creation). Recommended for AWS Academy quota-limited accounts."
-  default     = true
+  description = "IAM role ARN to use for ECS task execution + task role (AWS Academy LabRole)."
 }
 
 variable "server_container_image" {
@@ -92,32 +85,4 @@ variable "create_ecr_repositories" {
   type        = bool
   description = "Set false when ECR repos already exist (e.g. prior apply with lost state, or CI without remote backend)."
   default     = true
-}
-
-variable "create_iam_roles" {
-  type        = bool
-  description = "Set false when your principal cannot create IAM roles (e.g. AWS Academy). Then set external_ecs_* ARNs."
-  default     = true
-}
-
-variable "external_ecs_execution_role_arn" {
-  type        = string
-  description = "Existing ECS task execution role ARN (AmazonECSTaskExecutionRolePolicy or equivalent). Required when create_iam_roles is false."
-  default     = ""
-}
-
-variable "external_ecs_task_role_arn" {
-  type        = string
-  description = "Existing ECS task role ARN for application tasks. Required when create_iam_roles is false."
-  default     = ""
-}
-
-check "iam_roles_or_external" {
-  assert {
-    condition = (
-      var.create_iam_roles ||
-      (var.external_ecs_execution_role_arn != "" && var.external_ecs_task_role_arn != "")
-    )
-    error_message = "When create_iam_roles is false, set external_ecs_execution_role_arn and external_ecs_task_role_arn."
-  }
 }
