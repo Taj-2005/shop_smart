@@ -56,6 +56,18 @@ module "ecr" {
   create_repositories = var.create_ecr_repositories
 }
 
+module "alb" {
+  source = "./modules/alb"
+
+  name                     = local.name
+  vpc_id                   = local.vpc_id
+  subnet_ids               = local.subnet_ids
+  server_container_port    = var.server_container_port
+  client_container_port    = var.client_container_port
+  api_health_check_path    = var.api_health_check_path
+  client_health_check_path = var.client_health_check_path
+}
+
 module "ecs" {
   source = "./modules/ecs"
 
