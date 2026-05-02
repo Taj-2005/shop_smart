@@ -211,6 +211,15 @@ jobs:
           CLIENT_TG_ARN=$(aws elbv2 describe-target-groups --names "${INFRA_NAME}-client" --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null || true)
           [ "${API_TG_ARN:-}" = "None" ] && API_TG_ARN=""
           [ "${CLIENT_TG_ARN:-}" = "None" ] && CLIENT_TG_ARN=""
+          # Discard target group ARNs that have no load balancer attached yet
+          if [ -n "${API_TG_ARN}" ]; then
+            API_LB_ARN=$(aws elbv2 describe-target-groups --target-group-arns "${API_TG_ARN}" --query 'TargetGroups[0].LoadBalancerArns[0]' --output text 2>/dev/null || true)
+            { [ -z "${API_LB_ARN}" ] || [ "${API_LB_ARN}" = "None" ]; } && API_TG_ARN=""
+          fi
+          if [ -n "${CLIENT_TG_ARN}" ]; then
+            CLIENT_LB_ARN=$(aws elbv2 describe-target-groups --target-group-arns "${CLIENT_TG_ARN}" --query 'TargetGroups[0].LoadBalancerArns[0]' --output text 2>/dev/null || true)
+            { [ -z "${CLIENT_LB_ARN}" ] || [ "${CLIENT_LB_ARN}" = "None" ]; } && CLIENT_TG_ARN=""
+          fi
 
           ensure_service() {
             local service="$1" family="$2" container="$3" port="$4" sg="$5" tg_arn="${6:-}"
