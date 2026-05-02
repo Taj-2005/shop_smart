@@ -33,9 +33,14 @@ output "ecs_client_task_definition_family" {
   description = "Task definition family for the web app."
 }
 
+output "alb_dns_name" {
+  value       = module.alb.alb_dns_name
+  description = "DNS name of the Application Load Balancer. Client: http://<alb_dns_name>  API: http://<alb_dns_name>/api/"
+}
+
 output "public_endpoints_note" {
-  value       = "No ALB is provisioned. ECS tasks run with public IPs; retrieve task public IPs from the ECS console and use http://<client-task-ip>:3000 and http://<api-task-ip>:4000"
-  description = "How to access the services when deploying without a load balancer."
+  value       = "ALB provisioned. Access the client at http://${module.alb.alb_dns_name} and the API at http://${module.alb.alb_dns_name}/api/"
+  description = "How to access the services via the Application Load Balancer."
 }
 
 output "ecs_execution_role_arn" {

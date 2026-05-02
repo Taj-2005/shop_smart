@@ -135,6 +135,12 @@ jobs:
             SUBNET_B="${SUBNET_A}"
           fi
 
+          # Look up ALB target group ARNs (empty string if ALB not yet provisioned)
+          API_TG_ARN=$(aws elbv2 describe-target-groups --names "${INFRA_NAME}-api" --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null || true)
+          CLIENT_TG_ARN=$(aws elbv2 describe-target-groups --names "${INFRA_NAME}-client" --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null || true)
+          [ "${API_TG_ARN:-}" = "None" ] && API_TG_ARN=""
+          [ "${CLIENT_TG_ARN:-}" = "None" ] && CLIENT_TG_ARN=""
+
           ensure_sg() {
             local name="$1" port="$2"
             SG_ID=$(aws ec2 describe-security-groups \
@@ -160,20 +166,53 @@ jobs:
           done
 
           ensure_service() {
-            local service="$1" family="$2" sg="$3"
-            local status
+            local service="$1" family="$2" container="$3" port="$4" sg="$5" tg_arn="${6:-}"
+            local status lb_arn
             status="$(aws ecs describe-services --cluster "${INFRA_NAME}-cluster" --services "${service}" --query 'services[0].status' --output text 2>/dev/null || true)"
+
             if [ "${status}" = "ACTIVE" ]; then
-              return 0
+              # If ALB is now available but service was created without it, recreate with LB attached
+              if [ -n "${tg_arn}" ]; then
+                lb_arn="$(aws ecs describe-services --cluster "${INFRA_NAME}-cluster" --services "${service}" --query 'services[0].loadBalancers[0].targetGroupArn' --output text 2>/dev/null || true)"
+                if [ -z "${lb_arn}" ] || [ "${lb_arn}" = "None" ]; then
+                  echo "Recreating ${service} to attach ALB target group ${tg_arn}..."
+                  aws ecs update-service --cluster "${INFRA_NAME}-cluster" --service "${service}" --desired-count 0 >/dev/null 2>&1 || true
+                  aws ecs delete-service --cluster "${INFRA_NAME}-cluster" --service "${service}" --force >/dev/null 2>&1 || true
+                  local i
+                  for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
+                    local st
+                    st="$(aws ecs describe-services --cluster "${INFRA_NAME}-cluster" --services "${service}" --query 'services[0].status' --output text 2>/dev/null || echo "NONE")"
+                    { [ "${st}" = "INACTIVE" ] || [ "${st}" = "NONE" ]; } && break
+                    sleep 10
+                  done
+                else
+                  return 0
+                fi
+              else
+                return 0
+              fi
             fi
-            aws ecs create-service \
-              --cluster "${INFRA_NAME}-cluster" \
-              --service-name "${service}" \
-              --task-definition "${family}" \
-              --desired-count 1 \
-              --launch-type FARGATE \
-              --network-configuration "awsvpcConfiguration={subnets=[${SUBNET_A},${SUBNET_B}],securityGroups=[${sg}],assignPublicIp=ENABLED}" \
-              >/dev/null
+
+            if [ -n "${tg_arn}" ]; then
+              aws ecs create-service \
+                --cluster "${INFRA_NAME}-cluster" \
+                --service-name "${service}" \
+                --task-definition "${family}" \
+                --desired-count 1 \
+                --launch-type FARGATE \
+                --network-configuration "awsvpcConfiguration={subnets=[${SUBNET_A},${SUBNET_B}],securityGroups=[${sg}],assignPublicIp=ENABLED}" \
+                --load-balancers "targetGroupArn=${tg_arn},containerName=${container},containerPort=${port}" \
+                >/dev/null
+            else
+              aws ecs create-service \
+                --cluster "${INFRA_NAME}-cluster" \
+                --service-name "${service}" \
+                --task-definition "${family}" \
+                --desired-count 1 \
+                --launch-type FARGATE \
+                --network-configuration "awsvpcConfiguration={subnets=[${SUBNET_A},${SUBNET_B}],securityGroups=[${sg}],assignPublicIp=ENABLED}" \
+                >/dev/null
+            fi
           }
 
           register_deploy() {
@@ -235,9 +274,9 @@ jobs:
             ARN=$(jq -r '.taskDefinition.taskDefinitionArn' /tmp/reg.json)
 
             if [ "${service}" = "${INFRA_NAME}-api" ]; then
-              ensure_service "${service}" "${family}" "${API_SG}"
+              ensure_service "${service}" "${family}" "api" "4000" "${API_SG}" "${API_TG_ARN:-}"
             else
-              ensure_service "${service}" "${family}" "${WEB_SG}"
+              ensure_service "${service}" "${family}" "web" "3000" "${WEB_SG}" "${CLIENT_TG_ARN:-}"
             fi
 
             aws ecs update-service \
