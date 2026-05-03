@@ -37,6 +37,7 @@
 - [Running Tests](#running-tests)
 - [API Documentation](#api-documentation)
 - [Deployment](#deployment)
+- [GitHub Actions (CI/CD)](#github-actions-cicd)
 - [AWS (Terraform)](#aws-terraform)
 - [Design Patterns & OOP](#design-patterns--oop)
 - [Contributing](#contributing)
@@ -83,10 +84,10 @@
 | **API Docs** | Swagger / OpenAPI |
 | **Testing** | Playwright (E2E), Jest (unit) |
 | **Production** | [shopsmart.taj.works](https://shopsmart.taj.works/) (frontend), [shopsmart-server.taj.works](https://shopsmart-server.taj.works/) (API), [Swagger](https://shopsmart-swagger.taj.works/api-docs) |
-| **Deploy targets** | Any Node/Next host (Vercel, Render, AWS, VPS, Docker, etc.) |
+| **Deploy targets** | Any Node/Next host; optional **GitHub Actions** deploys to **AWS ECS Fargate** or **Amazon EKS** (see [.github/workflows](.github/workflows)) |
 | **Scaling** | Stateless API + frontend; scale instances behind your platform |
 | **Containerization** | Docker + Docker Compose |
-| **IaC (optional)** | Terraform (`terraform/`) — VPC, ALB, ECS Fargate, ECR, S3, optional EC2 |
+| **IaC (optional)** | `terraform/` — VPC, ALB, ECS Fargate, ECR, S3, optional EC2; `iac-terraform-eks/` — EKS cluster, managed node group, ECR; `k8s-manifests/` — Deployments/Services (NodePort) for EKS |
 
 ---
 
@@ -210,9 +211,12 @@ shop_smart/
 │   └── specs/smoke.spec.ts
 │
 ├── docs/                           # Architecture, ER, UML, SDLC docs
-├── terraform/                      # AWS: root main.tf + modules/ (VPC, ALB, ECS, ECR, S3, EC2)
+├── .github/workflows/              # CI/CD: ECS & EKS deploy, Terraform, tests, PR lint
+├── terraform/                      # AWS ECS path: main.tf + modules/ (VPC, ALB, ECS, ECR, S3, EC2)
 │   ├── main.tf                     # Provider, variables, locals, data, modules, outputs
 │   └── modules/                    # network, security, s3, ecr, iam, alb, ecs, ec2
+├── iac-terraform-eks/              # AWS EKS path: cluster, node group, ECR (Terraform)
+├── k8s-manifests/                  # Kubernetes Deployments for server/client (EKS workflows)
 ├── docker-compose.yml
 └── README.md
 ```
@@ -388,7 +392,43 @@ Use **AWS** or any managed provider for **PostgreSQL** and supporting services (
 
 ---
 
+## GitHub Actions (CI/CD)
+
+Workflows live under [`.github/workflows`](.github/workflows). Most AWS deploy workflows are **manual** (`workflow_dispatch`). Naming uses `INFRA_NAME = ${PROJECT_NAME}-${DEPLOY_ENV}` (repository variables `PROJECT_NAME` and `DEPLOY_ENV`, defaulting to `shopsmart` and `dev`).
+
+### ECS (Fargate)
+
+| Workflow | Purpose |
+|----------|---------|
+| [infra-deploy.yml](.github/workflows/infra-deploy.yml) | Terraform in `terraform/` (local state, no remote backend), optional ECS bootstrap in the default VPC, build/push **ECR**, register task definitions, rolling **ECS** deploy; expects IAM **LabRole** for task execution in restricted accounts |
+| [deploy-only.yml](.github/workflows/deploy-only.yml) | Skip Terraform: ensure ECR repos, build/push images, register tasks, **ECS** rolling update (can bootstrap cluster/SGs/log groups if missing) |
+| [ci-deploy.yml](.github/workflows/ci-deploy.yml) | **Legacy** pipeline: lint, Terraform validate, unit tests, then ECS deploy; client `NEXT_PUBLIC_API_URL` from SSM parameter `/${PROJECT_NAME}/${DEPLOY_ENV}/public_api_base_url` |
+
+**Secrets (typical):** `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, optional `AWS_SESSION_TOKEN`, `AWS_REGION`, and `SHOPSMART_ENV` — a JSON object `{"server":"<dotenv string>","client":"<dotenv string>"}` written to `server/.env` and `client/.env` on the runner. ECS “full” workflows resolve the public API URL from `client/.env` (`NEXT_PUBLIC_API_URL`) for the Next.js build.
+
+### EKS
+
+| Workflow | Purpose |
+|----------|---------|
+| [eks-infra-deploy.yml](.github/workflows/eks-infra-deploy.yml) | Terraform in [`iac-terraform-eks/`](iac-terraform-eks/) (import-friendly), **EKS** kubeconfig, build/push **ECR**, `kubectl apply` templated [`k8s-manifests/`](k8s-manifests/) |
+| [eks-deploy-only.yml](.github/workflows/eks-deploy-only.yml) | Build/push images and `kubectl set image` for existing EKS Deployments (cluster and ECR repos must already exist) |
+
+After a successful EKS run, logs print example **NodePort** URLs (defaults in Terraform: API **30400**, client **30300**) using the first node’s external or internal IP.
+
+### Other workflows
+
+| Workflow | Purpose |
+|----------|---------|
+| [terraform.yml](.github/workflows/terraform.yml) | Validate/plan/apply for **`terraform/`** on PRs, pushes to `main`/`develop`, or manual dispatch |
+| [integration-tests.yml](.github/workflows/integration-tests.yml) | Server integration tests on PR/push when `server/**` changes |
+| [e2e-tests.yml](.github/workflows/e2e-tests.yml) | Playwright E2E when `server/**`, `client/**`, or `e2e/**` changes |
+| [pr-lint.yml](.github/workflows/pr-lint.yml) | Conventional semantic PR titles |
+
+---
+
 ## AWS (Terraform)
+
+### ECS stack (`terraform/`)
 
 The `terraform/` directory defines an optional AWS footprint: **VPC** (public subnets), **Application Load Balancer** (port **80** → API task, **8080** → client task), **ECS Fargate** cluster and services, **ECR** repositories for server and client images, a private **S3** bucket (read access from the ECS task role), and an optional **EC2** instance (SSM-enabled; SSH only if you set a key pair and `ssh_ingress_cidr` in variables).
 
@@ -414,6 +454,10 @@ terraform apply
 Default container images are public **nginx** placeholders on port **80** so a first apply can succeed before you push to ECR. For real ShopSmart containers, set `server_container_image` / `client_container_image` to your ECR URLs and use **`server_container_port = 4000`**, **`client_container_port = 3000`**, with **`api_health_check_path = "/api/health"`** for the API target group.
 
 **PostgreSQL** is not created by this stack. Point your API task at RDS (or another database) via task environment/secrets in a follow-up change; wire `DATABASE_URL` and other secrets the same way you would on any ECS deployment.
+
+### EKS stack (`iac-terraform-eks/` + `k8s-manifests/`)
+
+[`iac-terraform-eks/`](iac-terraform-eks/) provisions an **EKS** cluster, managed node group, **ECR** repositories for the server and client images, and security rules (including NodePort ingress) aligned with the Kubernetes manifests. [`k8s-manifests/`](k8s-manifests/) holds Deployment and NodePort Service YAML with image placeholders replaced during **[eks-infra-deploy.yml](.github/workflows/eks-infra-deploy.yml)** (full apply) or image-only updates in **[eks-deploy-only.yml](.github/workflows/eks-deploy-only.yml)**. The same `SHOPSMART_ENV` GitHub secret format as the ECS workflows supplies `server/.env` and `client/.env` on the runner for Docker builds; add ConfigMaps or Secrets in Kubernetes if you need cluster-managed runtime configuration beyond the image.
 
 ---
 
@@ -465,7 +509,10 @@ Contributions are welcome! Please follow these steps:
 | Frontend Tests | `client/**/__tests__/*` |
 | E2E Tests | `e2e/specs/*` |
 | Docs | `docs/*` |
-| Terraform (AWS) | `terraform/main.tf`, `terraform/modules/*` |
+| Terraform (ECS on AWS) | `terraform/main.tf`, `terraform/modules/*` |
+| Terraform (EKS on AWS) | `iac-terraform-eks/*` |
+| Kubernetes (EKS) | `k8s-manifests/*` |
+| GitHub Actions | `.github/workflows/*` |
 
 Please ensure your changes include relevant tests and do not break existing ones.
 

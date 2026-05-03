@@ -30,6 +30,10 @@ This folder holds **system and software architecture** documentation for ShopSma
 - Prefer **stable filenames** and date or ADR numbers in decision docs.
 - Link to code paths (e.g. `server/src/routes`, `client/app`) when describing boundaries.
 
+## CI/CD and cloud layout
+
+Automated pipelines and AWS targets (**ECS Fargate** vs **Amazon EKS**) are documented in the repository root [README.md](../../README.md#github-actions-cicd) under **GitHub Actions (CI/CD)** and **AWS (Terraform)**. Workflow definitions live in [`.github/workflows/`](../../.github/workflows).
+
 ---
 
 *Maintained by the team. Team lead integrates cross-cutting updates.*
