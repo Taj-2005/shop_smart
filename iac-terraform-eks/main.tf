@@ -48,6 +48,8 @@ resource "aws_eks_cluster" "this" {
 
 # Open NodePort traffic on the cluster's shared security group so that
 # external clients can reach services running on worker nodes.
+# NOTE: 0.0.0.0/0 is intentional for this AWS Academy / dev environment where
+# public NodePort access is required. Restrict to known IPs in production.
 resource "aws_security_group_rule" "nodeport_server" {
   type              = "ingress"
   from_port         = var.server_nodeport
@@ -55,7 +57,7 @@ resource "aws_security_group_rule" "nodeport_server" {
   protocol          = "tcp"
   cidr_blocks       = ["0.0.0.0/0"]
   security_group_id = aws_eks_cluster.this.vpc_config[0].cluster_security_group_id
-  description       = "Allow inbound traffic to API server NodePort"
+  description       = "Allow inbound traffic to API server NodePort (dev/academy)"
 }
 
 resource "aws_security_group_rule" "nodeport_client" {
@@ -65,7 +67,7 @@ resource "aws_security_group_rule" "nodeport_client" {
   protocol          = "tcp"
   cidr_blocks       = ["0.0.0.0/0"]
   security_group_id = aws_eks_cluster.this.vpc_config[0].cluster_security_group_id
-  description       = "Allow inbound traffic to client NodePort"
+  description       = "Allow inbound traffic to client NodePort (dev/academy)"
 }
 
 resource "aws_eks_node_group" "this" {
