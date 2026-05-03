@@ -37,6 +37,8 @@ jobs:
           ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/LabRole"
           echo "LABROLE_ARN=${ROLE_ARN}" >> "$GITHUB_ENV"
           echo "TF_VAR_labrole_arn=${ROLE_ARN}" >> "$GITHUB_ENV"
+          echo "ACCOUNT_ID=${ACCOUNT_ID}" >> "$GITHUB_ENV"
+          echo "ECR_REGISTRY=${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com" >> "$GITHUB_ENV"
 
       - name: Write .env files from SHOPSMART_ENV
         run: |
@@ -56,6 +58,35 @@ jobs:
         working-directory: iac-terraform-eks
         run: terraform init -backend=false -input=false
 
+      - name: Import existing infrastructure into Terraform state
+        working-directory: iac-terraform-eks
+        run: |
+          set -euo pipefail
+          # Import each resource if it already exists so that terraform apply
+          # is a no-op when nothing has changed (idempotent runs).
+          # stderr is redirected to stdout so import errors are visible in the
+          # workflow log even though the step still succeeds (first run = no resources yet).
+          terraform import aws_eks_cluster.this "${INFRA_NAME}-eks"                     2>&1 || true
+          terraform import aws_eks_node_group.this \
+            "${INFRA_NAME}-eks:${INFRA_NAME}-nodes"                                     2>&1 || true
+          terraform import aws_ecr_repository.server "${INFRA_NAME}-server"             2>&1 || true
+          terraform import aws_ecr_repository.client "${INFRA_NAME}-client"             2>&1 || true
+
+          # Import NodePort security-group rules if the EKS cluster (and its SG) already exist.
+          # The aws_security_group_rule import ID is deterministic:
+          #   <sg-id>_ingress_tcp_<from>_<to>_<cidr>
+          SG_ID=$(aws eks describe-cluster --name "${INFRA_NAME}-eks" \
+            --query 'cluster.resourcesVpcConfig.clusterSecurityGroupId' \
+            --output text 2>/dev/null || echo "")
+          if [ -n "${SG_ID}" ] && [ "${SG_ID}" != "None" ]; then
+            SERVER_PORT="${TF_VAR_server_nodeport:-30400}"
+            CLIENT_PORT="${TF_VAR_client_nodeport:-30300}"
+            terraform import aws_security_group_rule.nodeport_server \
+              "${SG_ID}_ingress_tcp_${SERVER_PORT}_${SERVER_PORT}_0.0.0.0/0"            2>&1 || true
+            terraform import aws_security_group_rule.nodeport_client \
+              "${SG_ID}_ingress_tcp_${CLIENT_PORT}_${CLIENT_PORT}_0.0.0.0/0"            2>&1 || true
+          fi
+
       - name: Terraform plan
         working-directory: iac-terraform-eks
         run: terraform plan -no-color -input=false -out=tfplan
@@ -74,16 +105,16 @@ jobs:
         run: |
           set -euo pipefail
           echo "sha=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
-          echo "server_image=${{ secrets.DOCKERHUB_USERNAME }}/shopsmart-server:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
-          echo "client_image=${{ secrets.DOCKERHUB_USERNAME }}/shopsmart-client:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
-          echo "server_latest=${{ secrets.DOCKERHUB_USERNAME }}/shopsmart-server:latest" >> "$GITHUB_OUTPUT"
-          echo "client_latest=${{ secrets.DOCKERHUB_USERNAME }}/shopsmart-client:latest" >> "$GITHUB_OUTPUT"
+          echo "server_image=${ECR_REGISTRY}/${INFRA_NAME}-server:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          echo "client_image=${ECR_REGISTRY}/${INFRA_NAME}-client:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          echo "server_latest=${ECR_REGISTRY}/${INFRA_NAME}-server:latest" >> "$GITHUB_OUTPUT"
+          echo "client_latest=${ECR_REGISTRY}/${INFRA_NAME}-client:latest" >> "$GITHUB_OUTPUT"
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Login to Amazon ECR
+        run: |
+          set -euo pipefail
+          aws ecr get-login-password --region "${AWS_REGION}" | \
+            docker login --username AWS --password-stdin "${ECR_REGISTRY}"
 
       - name: Resolve NEXT_PUBLIC_API_URL for client build (from client/.env)
         id: api

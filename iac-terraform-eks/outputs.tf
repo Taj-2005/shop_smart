@@ -43,3 +43,13 @@ output "aws_account_id" {
   value       = data.aws_caller_identity.current.account_id
   description = "Current AWS account ID."
 }
+
+output "ecr_server_repository_url" {
+  value       = aws_ecr_repository.server.repository_url
+  description = "ECR repository URL for the server image."
+}
+
+output "ecr_client_repository_url" {
+  value       = aws_ecr_repository.client.repository_url
+  description = "ECR repository URL for the client image."
+}

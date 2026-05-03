@@ -70,6 +70,34 @@ resource "aws_security_group_rule" "nodeport_client" {
   description       = "Allow inbound traffic to client NodePort (dev/academy)"
 }
 
+resource "aws_ecr_repository" "server" {
+  name                 = "${local.name}-server"
+  image_tag_mutability = "MUTABLE"
+  force_delete         = var.environment != "prod"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  tags = {
+    Name = "${local.name}-server"
+  }
+}
+
+resource "aws_ecr_repository" "client" {
+  name                 = "${local.name}-client"
+  image_tag_mutability = "MUTABLE"
+  force_delete         = var.environment != "prod"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  tags = {
+    Name = "${local.name}-client"
+  }
+}
+
 resource "aws_eks_node_group" "this" {
   cluster_name    = aws_eks_cluster.this.name
   node_group_name = "${local.name}-nodes"
