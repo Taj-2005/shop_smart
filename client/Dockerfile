@@ -30,10 +30,15 @@ RUN groupadd -r nextjs && useradd -r -g nextjs nextjs
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
+COPY healthcheck.js ./healthcheck.js
 
 # Ensure runtime user can read all app files
 RUN chown -R nextjs:nextjs /app && chmod -R a+rX /app/public
 
 EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD node healthcheck.js
+
 USER nextjs
 CMD ["node", "server.js"]

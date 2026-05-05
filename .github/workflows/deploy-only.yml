@@ -2,6 +2,16 @@ name: Deploy only (build/push + ECS rolling update)
 
 on:
   workflow_dispatch:
+    inputs:
+      force_rebuild:
+        description: 'Force rebuild of both images even if no code changes are detected'
+        type: boolean
+        default: false
+  push:
+    branches: [main, develop]
+    paths:
+      - 'server/**'
+      - 'client/**'
 
 permissions:
   contents: read
@@ -20,6 +30,33 @@ jobs:
       SHOPSMART_ENV: ${{ secrets.SHOPSMART_ENV }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect changed services
+        id: changes
+        run: |
+          set -euo pipefail
+          # workflow_dispatch with force_rebuild=true → always build both
+          if [ "${{ inputs.force_rebuild }}" = "true" ]; then
+            echo "server=true" >> "$GITHUB_OUTPUT"
+            echo "client=true" >> "$GITHUB_OUTPUT"
+            echo "Force rebuild: rebuilding both services"
+            exit 0
+          fi
+          # Try git diff to find changed files (falls back to "all" if history unavailable)
+          CHANGED=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "all")
+          echo "Changed files: ${CHANGED}"
+          if [ "${CHANGED}" = "all" ] || echo "${CHANGED}" | grep -qE '^server/'; then
+            echo "server=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "server=false" >> "$GITHUB_OUTPUT"
+          fi
+          if [ "${CHANGED}" = "all" ] || echo "${CHANGED}" | grep -qE '^client/'; then
+            echo "client=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "client=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Write .env files from SHOPSMART_ENV
         run: |
@@ -92,6 +129,7 @@ jobs:
           echo "public_api_base=${NEXT_PUBLIC_API_URL}" >> "$GITHUB_OUTPUT"
 
       - name: Build and push server image
+        if: steps.changes.outputs.server == 'true'
         env:
           SERVER_URI: ${{ steps.meta.outputs.server_uri }}
           SHA: ${{ steps.meta.outputs.sha }}
@@ -104,6 +142,7 @@ jobs:
           docker push "${SERVER_URI}:latest"
 
       - name: Build and push client image
+        if: steps.changes.outputs.client == 'true'
         env:
           CLIENT_URI: ${{ steps.meta.outputs.client_uri }}
           SHA: ${{ steps.meta.outputs.sha }}
@@ -123,6 +162,27 @@ jobs:
           CLIENT_URI: ${{ steps.meta.outputs.client_uri }}
         run: |
           set -euo pipefail
+
+          # Resolve image tags: use the newly pushed SHA tag if it exists in ECR,
+          # otherwise fall back to the existing 'latest' (no rebuild occurred for that service).
+          SERVER_REPO="${INFRA_NAME}-server"
+          CLIENT_REPO="${INFRA_NAME}-client"
+          if aws ecr describe-images --repository-name "${SERVER_REPO}" \
+               --image-ids imageTag="${SHA}" >/dev/null 2>&1; then
+            SERVER_TAG="${SHA}"
+            echo "Server: using new image ${SERVER_REPO}:${SHA}"
+          else
+            SERVER_TAG="latest"
+            echo "Server: no new build detected, deploying ${SERVER_REPO}:latest"
+          fi
+          if aws ecr describe-images --repository-name "${CLIENT_REPO}" \
+               --image-ids imageTag="${SHA}" >/dev/null 2>&1; then
+            CLIENT_TAG="${SHA}"
+            echo "Client: using new image ${CLIENT_REPO}:${SHA}"
+          else
+            CLIENT_TAG="latest"
+            echo "Client: no new build detected, deploying ${CLIENT_REPO}:latest"
+          fi
 
           VPC_ID=$(aws ec2 describe-vpcs --filters Name=isDefault,Values=true --query 'Vpcs[0].VpcId' --output text)
           test -n "${VPC_ID}" && test "${VPC_ID}" != "None" || { echo "Could not resolve default VPC id"; exit 1; }
@@ -295,8 +355,8 @@ jobs:
               --force-new-deployment
           }
 
-          register_deploy "${INFRA_NAME}-api" "${SERVER_URI}:${SHA}" server/.env "${INFRA_NAME}-api"
-          register_deploy "${INFRA_NAME}-client" "${CLIENT_URI}:${SHA}" client/.env "${INFRA_NAME}-client"
+          register_deploy "${INFRA_NAME}-api" "${SERVER_URI}:${SERVER_TAG}" server/.env "${INFRA_NAME}-api"
+          register_deploy "${INFRA_NAME}-client" "${CLIENT_URI}:${CLIENT_TAG}" client/.env "${INFRA_NAME}-client"
 
       - name: Wait for ECS services to stabilize
         run: |
@@ -304,4 +364,3 @@ jobs:
           aws ecs wait services-stable \
             --cluster "${INFRA_NAME}-cluster" \
             --services "${INFRA_NAME}-api" "${INFRA_NAME}-client"
-

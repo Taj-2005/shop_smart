@@ -102,13 +102,27 @@ jobs:
         run: |
           npm ci
           npx prisma generate
-          npm run test -- --testPathIgnorePatterns=integration
+          npm run test -- --testPathIgnorePatterns=integration --json --outputFile=test-results.json
+
+      - name: Upload server unit test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-unit-test-results
+          path: server/test-results.json
 
       - name: Client — install, unit tests
         working-directory: client
         run: |
           npm ci
-          npm run test -- --passWithNoTests
+          npm run test -- --passWithNoTests --json --outputFile=test-results.json
+
+      - name: Upload client unit test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-unit-test-results
+          path: client/test-results.json
 
   deploy:
     name: Build, push, deploy to ECS
