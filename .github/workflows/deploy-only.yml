@@ -2,16 +2,6 @@ name: Deploy only (build/push + ECS rolling update)
 
 on:
   workflow_dispatch:
-    inputs:
-      force_rebuild:
-        description: 'Force rebuild of both images even if no code changes are detected'
-        type: boolean
-        default: false
-  push:
-    branches: [main, develop]
-    paths:
-      - 'server/**'
-      - 'client/**'
 
 permissions:
   contents: read
