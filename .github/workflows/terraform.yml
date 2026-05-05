@@ -148,8 +148,48 @@ jobs:
           VAR_EXT_EXEC: ${{ vars.TF_EXTERNAL_ECS_EXECUTION_ROLE_ARN }}
           VAR_EXT_TASK: ${{ vars.TF_EXTERNAL_ECS_TASK_ROLE_ARN }}
 
-      - name: Terraform init (no remote backend)
-        run: terraform init -backend=false -input=false
+      - name: Bootstrap Terraform S3 state bucket (idempotent)
+        run: |
+          set -euo pipefail
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          BUCKET_NAME="shopsmart-tfstate-${ACCOUNT_ID}"
+          REGION="${AWS_REGION}"
+
+          if ! aws s3api head-bucket --bucket "${BUCKET_NAME}" 2>/dev/null; then
+            if [ "${REGION}" = "us-east-1" ]; then
+              aws s3api create-bucket --bucket "${BUCKET_NAME}" --region "${REGION}"
+            else
+              aws s3api create-bucket --bucket "${BUCKET_NAME}" --region "${REGION}" \
+                --create-bucket-configuration LocationConstraint="${REGION}"
+            fi
+            echo "Created S3 bucket: ${BUCKET_NAME}"
+          fi
+
+          aws s3api put-bucket-versioning --bucket "${BUCKET_NAME}" \
+            --versioning-configuration Status=Enabled
+          aws s3api put-bucket-encryption --bucket "${BUCKET_NAME}" \
+            --server-side-encryption-configuration \
+            '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"},"BucketKeyEnabled":true}]}'
+          aws s3api put-public-access-block --bucket "${BUCKET_NAME}" \
+            --public-access-block-configuration \
+            '{"BlockPublicAcls":true,"IgnorePublicAcls":true,"BlockPublicPolicy":true,"RestrictPublicBuckets":true}'
+
+          PROJECT="${PROJECT_NAME:-shopsmart}"
+          ENV="${DEPLOY_ENV:-dev}"
+          echo "TF_BACKEND_BUCKET=${BUCKET_NAME}" >> "$GITHUB_ENV"
+          echo "TF_BACKEND_KEY=terraform/${PROJECT}/${ENV}/terraform.tfstate" >> "$GITHUB_ENV"
+          echo "S3 state bucket ${BUCKET_NAME} is ready"
+        env:
+          PROJECT_NAME: ${{ vars.PROJECT_NAME || 'shopsmart' }}
+          DEPLOY_ENV: ${{ vars.DEPLOY_ENV || 'dev' }}
+
+      - name: Terraform init (S3 backend)
+        run: |
+          terraform init \
+            -backend-config="bucket=${TF_BACKEND_BUCKET}" \
+            -backend-config="key=${TF_BACKEND_KEY}" \
+            -backend-config="region=${AWS_REGION}" \
+            -input=false
 
       - name: Terraform plan
         if: inputs.action == 'plan'

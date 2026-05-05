@@ -31,9 +31,13 @@ RUN groupadd -r nodejs && useradd -r -g nodejs nodejs
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
+COPY healthcheck.js ./healthcheck.js
 
 # App default port
 EXPOSE 4000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD node healthcheck.js
 
 USER nodejs
 CMD ["node", "dist/src/server.js"]

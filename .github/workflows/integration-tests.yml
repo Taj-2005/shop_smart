@@ -44,4 +44,11 @@ jobs:
         run: npx prisma db push --accept-data-loss
 
       - name: Run integration tests
-        run: npx jest --runInBand --forceExit --testPathPattern=integration
+        run: npx jest --runInBand --forceExit --testPathPattern=integration --json --outputFile=test-results.json
+
+      - name: Upload integration test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-integration-test-results
+          path: server/test-results.json
