@@ -108,16 +108,6 @@ jobs:
           aws ecr describe-repositories --repository-names "$SERVER_REPO" >/dev/null 2>&1 || aws ecr create-repository --repository-name "$SERVER_REPO" >/dev/null
           aws ecr describe-repositories --repository-names "$CLIENT_REPO" >/dev/null 2>&1 || aws ecr create-repository --repository-name "$CLIENT_REPO" >/dev/null
 
-      - name: Resolve NEXT_PUBLIC_API_URL for client build (from client/.env)
-        id: api
-        run: |
-          set -euo pipefail
-          set -a
-          source client/.env
-          set +a
-          test -n "${NEXT_PUBLIC_API_URL:-}" || { echo "NEXT_PUBLIC_API_URL is missing in client/.env"; exit 1; }
-          echo "public_api_base=${NEXT_PUBLIC_API_URL}" >> "$GITHUB_OUTPUT"
-
       - name: Build and push server image
         if: steps.changes.outputs.server == 'true'
         env:
@@ -136,10 +126,10 @@ jobs:
         env:
           CLIENT_URI: ${{ steps.meta.outputs.client_uri }}
           SHA: ${{ steps.meta.outputs.sha }}
-          NEXT_PUBLIC_API_URL: ${{ steps.api.outputs.public_api_base }}
         run: |
           set -euo pipefail
-          docker build --build-arg "NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}" -t "shopsmart-client:${SHA}" ./client
+          # Frontend uses relative /api paths routed through the ALB — no NEXT_PUBLIC_API_URL needed at build time.
+          docker build -t "shopsmart-client:${SHA}" ./client
           docker tag "shopsmart-client:${SHA}" "${CLIENT_URI}:${SHA}"
           docker tag "shopsmart-client:${SHA}" "${CLIENT_URI}:latest"
           docker push "${CLIENT_URI}:${SHA}"

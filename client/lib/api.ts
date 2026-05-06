@@ -1,6 +1,9 @@
 "use client";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+// In production the frontend is served behind the same ALB as the backend, so
+// relative paths ("/api/...") are used. Override NEXT_PUBLIC_API_URL locally
+// (e.g. "http://localhost:4000") when running outside the ALB.
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 export type ApiError = {
   status: number;

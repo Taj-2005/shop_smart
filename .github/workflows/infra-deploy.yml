@@ -22,6 +22,25 @@ jobs:
       SHOPSMART_ENV: ${{ secrets.SHOPSMART_ENV }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect changed services
+        id: changes
+        run: |
+          set -euo pipefail
+          CHANGED=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "all")
+          echo "Changed files: ${CHANGED}"
+          if [ "${CHANGED}" = "all" ] || echo "${CHANGED}" | grep -qE '^server/'; then
+            echo "server=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "server=false" >> "$GITHUB_OUTPUT"
+          fi
+          if [ "${CHANGED}" = "all" ] || echo "${CHANGED}" | grep -qE '^client/'; then
+            echo "client=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "client=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -188,17 +207,8 @@ jobs:
           echo "${SHOPSMART_ENV}" | jq -r '.server' > server/.env
           echo "${SHOPSMART_ENV}" | jq -r '.client' > client/.env
 
-      - name: Resolve NEXT_PUBLIC_API_URL for client build (from client/.env)
-        id: api
-        run: |
-          set -euo pipefail
-          set -a
-          source client/.env
-          set +a
-          test -n "${NEXT_PUBLIC_API_URL:-}" || { echo "NEXT_PUBLIC_API_URL is missing in client/.env"; exit 1; }
-          echo "public_api_base=${NEXT_PUBLIC_API_URL}" >> "$GITHUB_OUTPUT"
-
       - name: Build and push server image
+        if: steps.changes.outputs.server == 'true'
         env:
           SERVER_URI: ${{ steps.meta.outputs.server_uri }}
           SHA: ${{ steps.meta.outputs.sha }}
@@ -211,13 +221,14 @@ jobs:
           docker push "${SERVER_URI}:latest"
 
       - name: Build and push client image
+        if: steps.changes.outputs.client == 'true'
         env:
           CLIENT_URI: ${{ steps.meta.outputs.client_uri }}
           SHA: ${{ steps.meta.outputs.sha }}
-          NEXT_PUBLIC_API_URL: ${{ steps.api.outputs.public_api_base }}
         run: |
           set -euo pipefail
-          docker build --build-arg "NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}" -t "shopsmart-client:${SHA}" ./client
+          # Frontend uses relative /api paths routed through the ALB — no NEXT_PUBLIC_API_URL needed at build time.
+          docker build -t "shopsmart-client:${SHA}" ./client
           docker tag "shopsmart-client:${SHA}" "${CLIENT_URI}:${SHA}"
           docker tag "shopsmart-client:${SHA}" "${CLIENT_URI}:latest"
           docker push "${CLIENT_URI}:${SHA}"
