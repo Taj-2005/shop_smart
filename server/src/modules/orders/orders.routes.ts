@@ -21,5 +21,6 @@ router.patch(
   validate(updateOrderStatusValidation),
   (req, res, next) => ordersController.updateStatus(req as AuthRequest, res, next)
 );
+router.get("/demo" , (req, res) => res.json({ message: "This is a demo endpoint for orders." }));
 
 export default router;

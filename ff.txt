@@ -1,0 +1,990 @@
+
+
+**Discrete Mathematics — Shaik Tajuddin**
+
+---
+
+**Q1.**
+
+**a)** XNOR (P⊕Q) — Biconditional (P↔Q) ≡ (P→Q) ∧ (Q→¬P)
+
+| P | Q | P⊕Q | P↔Q |
+|---|---|-----|-----|
+| T | T | T | T |
+| T | F | F | F |
+| F | T | F | F |
+| F | F | T | T |
+
+**b)** ∴ The column values for P⊕Q and P↔Q are identical
+∴ P⊕Q ≡ P↔Q → logical equivalence (same truth values)
+
+**c)** P↔Q ≡ (P→Q) ∧ (Q→P)
+Now, P→Q ≡ ¬P∨Q
+Q→P ≡ ¬Q∨P
+Substitute:
+(P↔Q) ≡ (¬P∨Q) ∧ (¬Q∨P)
+If we check XNOR:
+P⊕Q ≡ (¬P∨Q) ∧ (¬Q∨P)
+∴ P⊕Q ≡ (P↔Q) → logical equivalent
+
+**d)** Let P→Q,
+Converse → (Q→P)
+Inverse → (¬P→¬Q)
+Contrapositive → (¬Q→¬P)
+Converse ≠ Inverse ≠ Contrapositive
+
+**e)**
+
+| P | Q | P→Q | Q→P | ¬P→¬Q | ¬Q→¬P |
+|---|---|-----|-----|-------|-------|
+| T | T | T | T | T | T |
+| T | F | F | T | T | F |
+| F | T | T | F | F | T |
+| F | F | T | T | T | T |
+
+Contrapositive is logically equivalent to original statement.
+
+**Equivalent pairs:**
+P→Q ≡ ¬Q→¬P
+Q→P ≡ ¬P→¬Q
+
+**f)** From table: When P→Q is True, contrapositive is always True because they are logically equivalent (P→Q ≡ ¬Q→¬P)
+
+---
+
+**Q2.** Given: S = {1,2,3,4,5}, P(x): x² > 10
+
+**a)** Universal quantifier
+∀x ∈ S : P(x)
+"For every element in S, P(x) is true"
+English: All elements satisfy x²>10 — False
+
+**b)** Theorem: Finite domain theorem
+(∀x ∈ S : P(x)) ≡ P(1) ∧ P(2) ∧ P(3) ∧ --- ∧ P(5)
+1² = 1 → F
+2² = 4 → F
+3² = 9 → F → Statement is False
+4² = 16 → T
+5² = 25 → T
+
+**c)** ∃x ∈ S : P(x) ← At least one element satisfies the condition
+
+**d)** Finite domain expansion
+∃x ∈ S : P(x) ≡ P(1) ∨ P(2) ∨ --- ∨ P(5)
+F∨F∨F∨T∨T = T → statement is True
+
+**e)** Pseudocode:
+Universal (∀): ∀x ∈ S: P(x)
+```
+for x in S:
+    if not P(x): → condition
+        return False
+return True
+```
+Existential (∃): ∃x ∈ S: P(x)
+```
+for x in S:
+    if P(x):
+        return True
+return False
+```
+
+**f)** Quantifier — Logical Behaviour
+∀ AND → Fail early
+∃ OR → Success early
+Corresponds to:
+∀ → conjunction (AND)
+∃ → disjunction (OR)
+
+---
+
+**Q3.**
+
+**a)**
+| Expression | Meaning |
+|------------|---------|
+| ∀r ∀c P(r,c) | All cells are filled |
+| ∀r ∃c P(r,c) | Each row has ≥1 cells filled |
+| ∃r ∀c P(r,c) | At least one row fully filled cells |
+| ∃r ∃c P(r,c) | At least one cell is filled |
+
+**b)** Same quantifiers commute:
+∀r∀c ≡ ∀c∀r
+∃r∃c ≡ ∃c∃r — logically equivalent
+
+**ø** Mixed quantifiers:
+∀r∃c ≠ ∃c∀r → False
+
+**c)** Counter example
+Matrix →
+```
+[1 0 0]   ∀r∃c → True
+[0 1 0]   ∃c∀r → False
+[0 0 1]   not equivalent
+```
+
+**d)** ∀r∃c : P(r,c)
+For every row, there exists at least one column such that one cell is filled.
+Code:
+```
+for r in rows:
+    flag = False
+    for c in columns:
+        if P(r,c): → The cell is filled or not
+            flag = True
+            break
+    if not flag:
+        return False
+return True
+```
+Logic: ∀r∃c: P(r,c) ≡ (∃cP(1,c)) ∧ (∃cP(2,c)) ∧ ...and across rows
+
+∃c∀r: P(r,c)
+There exists a column such that all rows are filled in that column.
+Code:
+```
+for c in columns:
+    all_true = True
+    for r in rows:
+        if not P(r,c): → If any cell is not filled
+            all_true = False
+            break
+    if all_true:
+        return True
+return False
+```
+Logic: ∃c∀r: P(r,c) ≡ (∀rP(r,1)) ∨ (∀rP(r,2)) ∨ ... OR across columns and inside each column
+
+From c):
+```
+1 0 0
+0 1 0
+0 0 1
+```
+∀r∃c → True    ∃c∀r → False
+They are both different conditions.
+
+---
+
+**4. De Morgan's Law for quantifiers**
+¬∀x P(x) ≡ ∃x ¬P(x)
+¬∃x P(x) ≡ ∀x ¬P(x)
+
+**a)** ¬[∀x ∈ Z : x²≥0]
+Apply De Morgan's: ∃x ∈ Z : ¬(x²≥0)
+≡ ∃x ∈ Z : x²<0
+"There exists an integer whose square is -ve."
+
+**b)** ¬[∃n ∈ N: n is even prime ∧ n>2]
+≡ ∀n ∈ N: ¬(even ∧ prime ∧ n>2)
+Apply De Morgan's:
+≡ ∀n ∈ N: (¬even ∨ ¬prime ∨ n≤2)
+"Every natural number is either not even or not prime or ≤2"
+
+**d)** ¬[∃r∀c: P(r,c)]
+≡ ∀r ¬[∀c: P(r,c)]
+≡ ∀r∃c: ¬P(r,c)
+"For every row, there exists a column that is not filled"
+
+**ø c)** ¬[∀r∀c: P(r,c)]
+≡ ∃r∃c: ¬P(r,c)
+"There exist at least one cell that is not filled."
+
+**c)** ¬[∀r∃c: P(r,c)] ≡ ∃r¬[∃c: P(r,c)]
+≡ ∃r∀c: ¬P(r,c)
+"There exists a row where all cells are not filled"
+
+---
+
+**Q5.**
+**(i) Proof:**
+¬[∀x ∈ S: P(x)] ≡ ∃x ∈ S: ¬P(x)
+
+∀x ∈ S: P(x) ≡ P(x₁) ∧ P(x₂) ∧ --- ∧ P(xₙ)
+¬[P(x₁) ∧ P(x₂) ∧ --- ∧ P(xₙ)]
+Apply De Morgan:
+≡ ¬P(x₁) ∨ ¬P(x₂) ∨ --- ∨ ¬P(xₙ)
+≡ ∃x ∈ S: ¬P(x)
+Hence proved.
+
+**(ii) ø Proof:**
+¬[∃x ∈ S: P(x)] ≡ ∀x ∈ S: ¬P(x)
+
+∃x ∈ S: P(x) ≡ P(x₁) ∨ P(x₂) ∨ --- ∨ P(xₙ)
+Apply De Morgan:
+≡ ¬P(x₁) ∧ ¬P(x₂) ∧ --- ∧ ¬P(xₙ)
+≡ ∀x ∈ S: ¬P(x)
+Hence proved.
+
+---
+
+**Q6.** Given:
+P₁ = (P∨Q) ∧ (¬Q∨R) ∧ (¬R∨P)
+P₂ = (¬P∨¬Q) ∧ (Q∨R) ∧ (X∨¬P)
+
+**a)** Take P=T, Q=F, R=T
+P∨Q = T∨F = T
+¬Q∨R = T∨T = T
+¬R∨P = F∨T = T → P₁ = T∧T∧T = T
+∴ P₁ is satisfiable
+
+**b)** P=F, Q=T, R=F
+¬P∨¬Q = T∨F = T
+Q∨¬R = T∨T = T
+R∨¬P = F∨T = T → P₂ = T∧T∧T
+P₂ is satisfiable
+
+**c)** P₁ ∧ P₂
+From P₁: force P=T
+From P₂: R=F
+× contradiction
+P₁ ∧ P₂ = False → Not satisfiable
+
+**d)** ¬P₁ ≡ ¬P₂
+¬P₁ = ¬[(P∨Q) ∧ (¬Q∨R) ∧ (¬R∨P)]
+Apply De Morg = ¬(P∨Q) ∨ ¬(¬Q∨R) ∨ ¬(¬R∨P)
+= (¬P∧¬Q) ∨ (Q∧¬R) ∨ (R∧¬P)
+Convert to CNF = (¬P∨¬Q) ∧ (Q∨R) ∧ (R∨¬P)
+= P₂
+∴ ¬P₁ ≡ P₂ — logically equivalent
+
+---
+
+**Q7.**
+
+**a)** P: login originates outside network
+Q: VPN is used
+R: Valid employee token supplied
+S: account is compromised
+T: security team must be notified
+
+1. P∨Q
+2. Q→R
+3. ¬P
+4. P→S
+5. S→T
+
+Step 1: P∨Q, ¬P → Q — Disjunctive Syllogism
+Step 2: Q, Q→R → R — Modus Ponens
+Step 3: R, R→S → S — Modus Ponens
+Step 4: S, S→T → T — Modus Ponens
+T = conclusion: Security team must be notified
+
+**c)** Hypothetical Syllogism:
+(P→Q) ∧ (Q→R) → (P→R)
+Q→R, R→S, S→T
+⇒ Q→T
+[Given (Q→T) = if Q then t]
+
+---
+
+**Q8.**
+
+**a)** Direct Proof:
+Assume n² is odd and try to show n is odd.
+Issue: There is no algebraic way to express n directly from n².
+Direct proof is not suitable.
+
+**b)** Contrapositive: (P→Q ≡ ¬Q→¬P)
+If n is even ⇒ n² is even
+Let n = 2k (k∈Z)
+n² = (2k)² = 4k² = 2(2k²)
+∴ n² is even
+Contrapositive is true ⇒ Original statement is true
+
+**c)** Contradiction:
+Assume n² is odd and n is even.
+Sub n = 2k
+n² = 4k² = 2(2k) → even
+Assumed n² is odd but derived n² is even.
+Contradiction → Assumption is false → Statement is true
+
+**d)**
+| Method | Result |
+|--------|--------|
+| Direct | Difficult |
+| Contrapositive | Best |
+| Contradiction | Works but longer |
+→ Contrapositive is most elegant → Simple algebra & direct proof structure
+
+---
+
+**Q9.** H(a,b,c)
+
+**a)** Minterms = rows where H=1
+
+| a | b | c | H |
+|---|---|---|---|
+| 0 | 0 | 0 | 1 |
+| 0 | 1 | 0 | 1 |
+| 0 | 1 | 1 | 1 |
+| 1 | 1 | 0 | 1 |
+
+m₀ = a'b'c'
+m₂ = a'b'c'
+m₃ = a'bc
+m₆ = abc'
+
+**b)** Sum of all minterms = 1
+H(a,b,c) = Σ(0,2,3,6)
+= a'b'c' + a'bc' + a'bc + abc' — Canonical SOP
+
+**c)** Grouping: a'b'c' + a'bc' + a'bc + abc'
+= c'(a'b' + a'b + ab) + a'bc
+S → a'b + a'b = a'
+⇒ c'(a'+ab) + a'bc
+a'c' + bc' + a'bc
+a'c + a'bc = a'(c'+bc)
+c'+bc = (c'+b)(c'+c) = (c'+b)
+= a'(c'+b) + bc'
+= a'c' + a'b + bc'
+H = a'c' + a'b + bc'
+
+**d)** Gate count:
+5 AND + 1 OR + NOT S → many gates
+F = z + x'y → (a=3,b=10)
+1 AND
+1 OR
+1 NOT
+
+---
+
+**Q10.** Given:
+
+| x | y | z | F |
+|---|---|---|---|
+| 0 | 0 | 0 | 0 |
+| 0 | 0 | 1 | 1 |
+| 0 | 1 | 0 | 1 |
+| 0 | 1 | 1 | 1 |
+| 1 | 0 | 0 | 1 |
+| 1 | 0 | 1 | 0 |
+| 1 | 1 | 0 | 1 |
+| 1 | 1 | 1 | 1 |
+
+**a)** K-map (yz):
+
+| x\yz | 00 | 01 | 11 | 10 |
+|------|----|----|----|----|
+| 0 | 0 | 1 | 1 | 1 |
+| 1 | 0 | 1 | 1 | 0 |
+
+G-1 (0,1,3,5) = (1,3,5,7)
+G-2 (x=0, yz=10,11) both → term: y'z
+y'z + yz = z(y'+y) = z
+G-3: x=0 → (11,10)
+x'y
+
+**b)** +01 &11 → covers all cell (01)
+term: y'z
+G-2 (x=0, yz=10,11) both (T)(T)
+y'z + yz = z(y'+y) = z
+G-3 x=0 → (11,10)
+x'y
+
+F = x+z = z + x'y
+
+x'y'z + xy'z = y'z
+x'yz + xyz = yz
+= y'z + yz + x'y
+= z(y'+y) + x'y = z + x'y
+F = z + x'y
+
+**c)** SOP: F = x'y'z + x'yz' + x'yz + xy'z + xyz
+x'y'z + xy'z = y'z
+x'yz + xyz = yz
+
+**d)** (0,0,0) → a'c'=1
+(0,1,0) → bc'=1
+(0,1,1) → a'b=1
+(1,1,0) → bc'=1 — verified
+
+---
+
+**Q11.**
+
+**a)** Russell's Paradox
+Russell Set: R = {x | x ∉ x}
+Set of all sets that do not contain themselves.
+Does R ∈ R?
+Case 1: Assume R∈R → By defn: R∉R → Contradiction
+Case 2: Assume R∉R → By defn: R∈R → Contradiction
+∴ R∈R ⟺ R∉R — Impossible situation. This is a paradox.
+
+**d)** In naive set theory, any property can define a set.
+This leads to contradiction like Russell's paradox.
+Using Zermelo–Fraenkel set theory:
+1. Not every property forms a set
+2. Sets must follow strict axioms
+3. Avoid self referencing.
+
+---
+
+**Q12.**
+
+**a)** A function f: A→B is bijective if:
+1) Injective (one-to-one): f(a₁)=f(a₂) ⇒ a₁=a₂
+No two elements of A map to same element of B.
+
+2) Surjective (onto): ∀b∈B, ∃a∈A such that f(a)=b
+Every element of B is mapped.
+
+Bijective = one-to-one + onto
+
+**b)** Theorem used:
+Two sets have equal cardinality if there exists a bijection between them.
+Proof: Let f: A→B be bijective.
+Injective ⇒ No repetition — each element of A maps to a distinct element of B.
+Surjective ⇒ No element left → Every element is mapped, so number of elements in B ≤ number in A.
+|A| ≤ |B| & |B| ≤ |A|
+|A| = |B|
+Hence proved.
+Applies to both finite & infinite sets.
+Finite → equal no. of elements
+Infinite → same size (cardinality)
+Ex: Natural numbers ↔ Even numbers
+
+---
+
+**Q13.**
+
+**a)** Yes — enumeration (sequence) N = 1,2,3,---
+Explicit function: f(n) = n
+Every natural number appears once. Clearly countable.
+
+**b)** Yes — includes -ve numbers, alternate +ve & -ve
+Z = 0,1,-1,2,-2,3,-3
+Explicit function: f(n) = n/2, n even; (-n+1)/2, n odd
+Every integer appears exactly once. Hence countable.
+
+**c)** Yes — method: Cantor diagonal method
+Arrange fractions in grid:
+1/1, 1/2, 1/3, ...
+2/1, 2/2, 2/3, ...
+3/1, 3/2, 3/3, ...
+Traverse diagonally: 1/1 → 1/2, 2/1 → 3/1, 2/2, 1/3 →...
+Skip duplicates (like 2/2=1/1)
+All three sets N, Z, Q are countable.
+
+---
+
+**Q14.**
+
+**a)** Bijection f: Z→N
+Convert integers into Natural Numbers (handletues)
+Function f(z) = 2z, z≥0; -2z-1, z<0
+0,1,-1,2,-2,3,-3
+
+| Int | Nat |
+|-----|-----|
+| 0 | 1 |
+| 1 | 2 |
+| -1 | 3 |
+| 2 | 4 |
+| -2 | 5 |
+
+**b)** g: Q⁺→N (fractions)
+Write fraction in the form of Grid:
+1/1, 1/2, 1/3, ...
+2/1, 2/2, 2/3, ...
+3/1, 3/2, 3/3, ...
+We use diagonal traversal (Cantor method)
+1/1 → 1/2, 2/1 → 3/1, 2/2, 1/3 → ...
+Remove duplicates (Ex: 2/2=1/1 → skip)
+Only keep reduced fractions.
+Every +ve rational appears exactly once.
+So this defines a bijection g: Q⁺→N.
+Cantor pairing: g(f) = position in diag traversal.
+
+Now include -ve rationals also:
+We already mapped Q⁺: 0, q₁, q₂, -q₂, ...
+Map +ve rationals → even
+Map -ve → odd
+Ex: Q to Z
+D | 1 — covers all rational, no repetition.
+
+---
+
+**Q15.**
+
+**a)** Def: A set is countable if:
+Either S is finite or there exists a bijection f: S→N
+Types of countable sets:
+1. Finite sets. Ex: {1,2,3}
+2. Countably infinite series. Ex: N, Z, Q
+
+**b)** Yes. Proof:
+Given A is countable ∃ a listing A = {a₁, a₂, a₃, ---}
+Let B⊆A.
+Constructing a sequence for B:
+Go through the list of A:
+- Keep elements that belong to B.
+- Skip others.
+New Sequence: B = {b₁, b₂, ---}
+B can be listed → B is countable.
+∴ Every subset of a countable set is countable.
+
+Ex: Let A = N = {1,2,3,4,...}
+Subset B = {2,4,6,8,...}
+f(n) = 2n → B is countable.
+
+---
+
+**Q16.**
+
+**a)** Cantor's Diagonal Traversal:
+List all +ve rationals p/q by arranging them in a grid & moving diagonally.
+Grid: numer=row, denom=column, for 1-4:
+
+| p\q | 1 | 2 | 3 | 4 |
+|-----|---|---|---|---|
+| 1 | 1/1 | 1/2 | 1/3 | 1/4 |
+| 2 | 2/1 | 2/2 | 2/3 | 2/4 |
+| 3 | 3/1 | 3/2 | 3/3 | 3/4 |
+| 4 | 4/1 | 4/2 | 4/3 | 4/4 |
+
+Diagonal Traversal:
+1/1
+1/2 → 2/1 — Skip duplicates: 2/2=1/1 × Skip
+3/1 → 2/2 → 1/3
+1/4 → 2/3 → 3/2 → 4/1
+zig-zag diagonally
+
+**b)** Pseudocode (algo):
+count = 0, n = 1
+(ø) Print first 20 distinct +ve diagonals.
+Code:
+```
+count = 0
+n = 1
+while count < 20:
+    for i in range(1, n+1):
+        j = n-i+1
+        if gcd(i,j) == 1:
+            print(i, "/", j)
+            count += 1
+            if count == 20:
+                break
+    n += 1
+```
+n → control diagonals, i+j = n+1 → same diagonal
+gcd check → duplicates & remove
+
+---
+
+**Q17.** Prove R is uncountable.
+Proof by contradiction + Cantor's diagonal argument.
+Assume real numbers in [0,1] are countable.
+r₁ = 0.d₁₁ d₁₂ d₁₃ d₁₄ ...
+r₂ = 0.d₂₁ d₂₂ d₂₃ d₂₄ ...
+r₃ = 0.d₃₁ d₃₂ d₃₃ d₃₄ ...
+Create a new number:
+x = 0.C₁C₂C₃C₄...
+where Cᵢ ≠ dᵢᵢ
+Change each diagonal digit.
+Example rule: If digit=5 → take 6, else → take 5
+So x ≠ rᵢ ∀i
+Assumption is false → R is uncountable.
+
+---
+
+**Q18.** If A₁, A₂, A₃ --- are countable sets, then ∪Aᵢ is countable (i=1 to ∞).
+Constructive proof (listing):
+Each set is countable, so each Aᵢ can be written as:
+A₁ = {a₁₁, a₁₂, a₁₃, ...}
+A₂ = {a₂₁, a₂₂, a₂₃, ...}
+A₃ = {a₃₁, a₃₂, a₃₃, ...}
+Arranging in grid:
+a₁₁ a₁₂ a₁₃ a₁₄ ...
+a₂₁ a₂₂ a₂₃ a₂₄ ...
+a₃₁ a₃₂ a₃₃ ...
+Traverse diagonally: pick elements like:
+a₁₁
+a₁₂, a₂₁
+a₃₁, a₂₂, a₁₃
+a₁₄, a₂₃, a₃₂, a₄₁ ...
+It ensures every element is eventually reached.
+Remove duplicates.
+Created a single list of all elements ⇒ ∪Aᵢ is countable.
+
+---
+
+**Q19.**
+
+**a)** Every Python program is a finite string.
+A Python program is made of characters (letters, digits, symbols).
+These come from a finite alphabet (ASCII).
+So each program = finite string over ASCII.
+P ⊆ {all finite strings over ASCII}
+
+**b)** Finite strings over a finite alphabet are countable.
+Group strings by length:
+- Length 0 → 1 string
+- Length 1 → finite
+- Length 2 → finite
+Total set: All strings = ∪(strings of length n), n≥0
+Each group = finite; countable union of finite sets = countable.
+∴ all finite strings is countable.
+P ⊆ finite strings → P is countable. |P| ≤ |N|
+
+**c)** Injection P→N:
+Treat each program as a number.
+Method: Each character → ASCII value (0-127)
+Treat string as base-128 number.
+Ex: 'ab' ASCII: (97,98) no. = 97×128+98
+Each program → unique number.
+Injection exists. Hence countable.
+
+---
+
+**Q20.** Let B* = {all binary strings of finite length}
+Bijection f: B*→N.
+Binary strings = strings of 0 & 1.
+Ex: ε, 0, 1, 00, 01, 10, 11, 000, ...
+Grouping them by length:
+- length 0 → ε
+- " 1 → 0, 1
+- " 2 → 00, 01, 10, 11
+- " 3 → 000, 001, ...
+Listing them in order: first length & then lexicographically.
+ε, 0, 1, 00, 01, 10, 11, 000, ...
+This gives a sequence.
+Assign natural nos:
+f(ε)=1, f(0)=2, f(1)=3, f(00)=4, ...
+Every string gets a unique no.
+Every natural no. corresponds to a string.
+Hence B* is countable.
+
+**Q21.** Proof by contradiction (Cantor's diagonal argument):
+Assume B^ω is countable, so we can list all strings:
+S₁, S₂, S₃, ...
+In matrix: S₁ = b₁₁ b₁₂ b₁₃ b₁₄ ...
+S₂ = b₂₁ b₂₂ b₂₃ = ...
+S₃ = b₃₁ b₃₂ b₃₃ ...
+(each bᵢⱼ ∈ {0,1})
+Define a new string: x = C₁C₂C₃C₄...
+where: Cᵢ = 1 if bᵢᵢ=0; 0 if bᵢᵢ=1
+flip diagonal digits.
+x differs from S₁ at pos 1
+x differs from S₂ at pos 2
+x differs from S₃ at pos 3
+So x ≠ Sᵢ ∀i.
+We assumed list contains all strings but x is not in the list.
+B^ω is uncountable.
+
+---
+
+**Q22.**
+
+**a)** Cantor's Theorem: For any set A, |A| < |P(A)|
+The power set (set of all subsets) is always strictly larger.
+
+**b)** Proof: We prove in two parts.
+(i) Injection exists: A→P(A)
+func → f(a) = {a} (each element is mapped to singleton set)
+If f(a₁)=f(a₂) ⇒ {a₁}={a₂} ⇒ a₁=a₂
+So injection exists → |A| ≤ |P(A)|
+
+(ii) No surjection exists: A→P(A)
+Contradiction (diagonal argument)
+There exists a surjection f: A→P(A)
+S = {a ∈ A | a ∉ f(a)}
+Case 1: Assume x ∈ S → x ∉ f(x) → But f(x)=S so: x ∉ S → contradiction
+Case 2: Assume x ∉ S → x ∈ f(x) → But f(x)=S so: x ∈ S → contradiction
+No such x exists → f is not surjective → |A| < |P(A)| → Proved
+
+**c)** Apply to N: |N| < |P(N)|
+Power set of Natural numbers is uncountable.
+
+---
+
+**Q23.** f: N→{0,1,...,9} are uncountable.
+Each function assigns a digit to every natural number: f(1),f(2),f(3)...
+This is like an infinite sequence of digits.
+Ex: (3,1,4,0,9,2,...) — Cantor's diagonal argument.
+Proof by contradiction:
+Assume all such functions are countable, so we can list them: f₁,f₂,f₃,...
+f₁ = (a₁₁,a₁₂,a₁₃,...) (value 0-9)
+f₂ = (a₂₁,a₂₂,a₂₃,...)
+f₃ = (a₃₁,a₃₂,a₃₃,...)
+Define new function g:
+g(n) ≠ fₙ(n)
+Rule: g(n) = fₙ(n)+1 mod 10
+→ g(n) ≠ fₙ(n)
+g ≠ f₁ (differs at pos 1)
+g ≠ f₂ (differs at pos 2)
+g ≠ f₃ (differs at pos 3)
+So g is not in the list.
+We assumed all functions are listed but g is missing.
+Set of all functions is uncountable.
+
+---
+
+**Q24.** U(n) = {a ∈ Zₙ | gcd(a,n)=1}
+
+**a)** U(12): Checking number 0 to 11 — they should be co-prime to them.
+
+| a | gcd(a,12) | included? |
+|---|-----------|-----------|
+| 1 | 1 | ✓ |
+| 2 | 2 | × |
+| 3 | 3 | × |
+| 4 | 4 | × |
+| 5 | 1 | ✓ |
+| 6 | 6 | × |
+| 7 | 1 | ✓ |
+| 8 | 4 | × |
+| 9 | 3 | × |
+| 10 | 2 | × |
+| 11 | 1 | ✓ |
+
+U(12) = {1,5,7,11} verified.
+
+**b)** Multiplication Table (mod 12):
+
+| × | 1 | 5 | 7 | 11 |
+|---|---|---|---|----|
+| 1 | 1 | 5 | 7 | 11 |
+| 5 | 5 | 1 | 11 | 7 |
+| 7 | 7 | 11 | 1 | 5 |
+| 11 | 11 | 7 | 5 | 1 |
+
+All of them are inside U(12).
+
+**c)** If a,b ∈ U(n) then ab mod n ∈ U(n)
+Reason: gcd(a,n)=1, gcd(b,n)=1 ⇒ gcd(ab,n)=1
+Closed under multiplication.
+
+**d)** Inverse:
+If gcd(a,n)=1 then a has a multiplicative inverse mod n.
+Ex: U(12): 5×5=1 mod 12 → Inverse of 5 is 5
+7×7=1 → Inverse of 7 is 7
+11×11=1
+
+**e)** Group axioms:
+1. Closure ✓
+2. Associative – Inherited from integer multiplication
+3. Identity: 1 ∈ U(12)
+4. Inverse: Each element has inverse
+Conclusion: (U(n), ×ₙ) is a group.
+
+---
+
+**Q25. Generators**
+
+**a)** Order of an element:
+The order of g is the smallest +ve integer k such that k·g ≡ 0 (mod n)
+
+**ø** Generator: An element g is a generator if:
+{g, 2g, 3g, -...g} = Zₙ. It produces all elements.
+
+**b)** Theorem: g generates Zₙ ⟺ gcd(g,n)=1
+If gcd=1 → cycles through all elements
+If gcd≠1 → misses some values
+
+**c)** Generators of Z₁₀:
+Check gcd(g,10) → Generator?
+
+| g | gcd(g,10) | Generator? |
+|---|-----------|-----------|
+| 1 | 1 | ✓ |
+| 2 | 2 | × |
+| 3 | 1 | ✓ |
+| 4 | 2 | × |
+| 5 | 5 | × |
+| 6 | 2 | × |
+| 7 | 1 | ✓ |
+| 8 | 2 | × |
+| 9 | 1 | ✓ |
+
+Generators = {1,3,7,9}
+Order: Checking multiples:
+1 → reaches all → ord=10
+3 → Sequence: 3,6,9,2,5,8,1,4,7,0 → order=10
+7 → Order=10
+9 → Order=10
+All generators have order=10.
+
+**d)** Euler's Totient function:
+φ(n) = no. of integers ≤ n that are coprime with n.
+For n=10: Numbers coprime with 10: 1,3,7,9 → φ(10)=4
+No. of generators of Zₙ = φ(n)
+
+---
+
+**Q26.**
+
+**a)** U(13) = {a ∈ Z₁₃ | gcd(a,13)=1}
+U(13) → all no's b/w 1 to 12 that are prime to 13.
+∴ 13 is a prime → so every no. from 1 to 12 works.
+U(13) = {1,2,...,12} → |U(13)| = 12 (size)
+
+**b)** Order → Keep multiplying the no. (mod 13)
+Stop when you get 1 again.
+Check 2:
+2¹=2, 2²=4, 2³=8, 2⁴=16≡3, 2⁵=6, 2⁶=12, 2⁷=11, 2⁸=9, 2⁹=5, 2¹⁰=7, 2¹²=1 → Order=12
+
+**c)** Generators = elements whose order = full group size
+U(13) → generators → {2,6,7,11}
+
+**d)** No. of generators = φ(12)
+Now: φ(12)=4 → {2,6,7,11}
+
+---
+
+**Q27. Diffie Hellman Key Exchange**
+Given: g=3, P=19
+
+**(i)** Private keys: Alice a=4, Bob b=5
+Public keys:
+A = 3⁴ mod 19 = 13
+B = 3⁵ mod 19 = 5
+
+**(ii)** Shared secret:
+Sₐ = Bᵃ = 5⁴ mod 19 = 13
+S_B = Aᵇ = 13⁵ mod 19 = 13 ✓
+Same secret S=13
+
+**(iii)** Key → shared secret S=13
+**(iv)** Eve can't find it, so she has to solve: 3^x mod19=13
+× Hard problem → Discrete logarithm
+
+**(v)** Sₐ = (gᵇ)ᵃ = gᵃᵇ
+S_B = (gᵃ)ᵇ = gᵃᵇ
+∴ Sₐ = S_B = gᵃᵇ — both sides
+
+---
+
+**Q28.**
+
+**a)** (Z,+) → Closure, Identity, Inverse, commutative → Abelian Group
+**b)** (Z,×) → Monoid — Closure, Identity(1), Inverse × (e.g. 2 has no int inv)
+**c)** (Q\{0},×) → Closure, Identity=1, Inverse, commutative → Abelian Group
+**d)** ({1,-1,i,-i},×) → Closure, Identity(1), Inverse, commutative → Abelian Group
+**e)** (Z[√2],+,×) form a+b√2
+Closure under + & ×; Identity exists; Distributive ✓; Inverse ×(not always) → Commutative Ring
+**f)** (Z₆,+₆,×₆) → Ring → Not field × (e.g. 2 has no inverse) → Commutative Ring (not field)
+**g)** (Z₇,+₇,×₇) → 7 is prime → All non-zero elements have inverse (Field) ✓
+**h)** (M₂(R),+,×) → Closed, Identity exists, Not commutative (AB≠BA) → Ring (non-commutative)
+**i)** Dihedral group Dₙ → Symmetries of polygon — includes rotation+reflections — Group (non-abelian)
+  Generators: rotation r, reflections
+**j)** (C\{0},k) → Closure, Identity=1, Inverse, commutative → Abelian Group
+
+---
+
+**Q29.**
+
+**a)** Recurrence Relation:
+2 recursive calls → left+right; extra work=O(n)
+So T(n) = 2T(n/2)+n
+
+**b)** Solving recurrence — Master Theorem:
+T(n) = aT(n/b)+f(n)
+Here a=2, b=2, f(n)=n
+n^(log_b a) = n^(log₂2) = n
+Same as f(n) → T(n) = O(n log n)
+
+**c)** Definition of Big-O:
+f(n) = O(g(n)) means f(n) ≤ C·g(n) for large n (for some constant C)
+
+**d)** Growth order (slow→fast):
+log n < n < n log n < n² < n³ < 2ⁿ < n!
+
+---
+
+**Q30.** Need 12 cookies total.
+Conditions: Choco chips: even → 0,2,4,... (cc)
+Oatmeal: at most 4 (0≤4)
+PB: ≥2
+S: any
+CC → Poly eqn's: 1+x²+x⁴+x⁶+...
+O → 1+x+x²+x³+x⁴
+PB → x²+x³+x⁴+... = x²/(1-x)
+S → 1+x+x²+x³+... = 1/(1-x)
+Multiply all:
+(1+x+x²+x⁴+...)(1+x+x²+x³+x⁴)·(x²/(1-x))·(1/(1-x))
+Simplify: = 1/(1-x²)·(1+x+x²+x³+x⁴)·x²/(1-x)²
+Coef of x¹² ?
+
+Let cc+PB+O+S=12 → conditions: PB≥2→PB=2+k (k≥0)
+2m+0+k+S=10 — CC even→CC=2m
+0≤4; k,S≥0
+No. of ways → S
+2m≤10 ⇒ m=0,1,2,3,4,5 (other ≥0), k,S≥0
+0+k+S = 10-2m
+
+Case 1: m=0 → 0+K+S=10
+Solution: C(10+3-1,3-1) = ¹²C₂ = 66
+Remove invalid 0≥5: let 0'=0-5, 0'+k+S=5 → ⁷C₂=21
+66-21=45 valid.
+
+Case 2: m=2 → 0+k+S=6
+Total: 8C₂=28; Invalid 0'+k+S=1=3C₂=3
+Total valid ⇒ 28-3=25
+
+Case 3: m=3 → 0+k+S=4
+Total: 6C₂=15; no invalid (0≤4 always); valid=15 ✓
+
+Case 4: m=4 → 0+k+S=2 → 4C₂=6
+
+Case 5: m=5 → 0+k+S=0; only 1 solution.
+
+Adding all: 45+35+25+15+6+1=127
+→ Number of ways = 127
+
+---
+
+**Q31.** Given: aₙ = 3aₙ₋₁ - 2aₙ₋₂, a₀=1, a₁=3
+
+**a)** Generating function:
+A(x) = Σ aₙxⁿ (n≥0)
+Multiplying recurrence by xⁿ & sum:
+Σ aₙxⁿ = 3Σ aₙ₋₁xⁿ - 2Σ aₙ₋₂xⁿ (n≥2)
+Convert to A(x): Left side: A(x)-a₀-a₁x = A(x)-1-3x
+Right side: 3x(A(x)-1)-2x²A(x)
+
+**b)** Solve for A(x):
+A(x) = 1/(1-3x+2x²)
+1-3x+2x² = (1-x)(1-2x)
+
+**c)** Partial fractions:
+A(x) = 1/((1-x)(1-2x))
+= -1/(1-x) + 2/(1-2x)
+
+**d)** Use known series:
+1/(1-x) = Σxⁿ
+1/(1-2x) = Σ2ⁿxⁿ
+So: A(x) = Σ(-1)xⁿ + Σ2·2ⁿxⁿ
+aₙ = 2ⁿ⁺¹-1 [A(x) = 1/(1-x)(1-2x)]
+
+---
+
+**Q32.** Given edges: A-B, A-C, B-C, B-D, C-E, D-E, D-F, E-G, F-G (implied)
+
+**a) ø** Adjacency list & Degree Sequence:
+A→B,C | A=2
+B→A,C,D | B=3
+C→A,B,E,G | C=4
+D→B,E,F | D=3
+E→C,D,G | E=3
+F→D,G | F=2
+G→C,E,F | G=3
+
+**b)** Euler path/circuit Theorem:
+Euler Circuit → all vertices even
+Euler path → exactly 2 odd vertices.
+Check degrees: odd vertices: B,D,E,G (4 odd)
+Conclusion: Euler circuit × (not all even)
+Euler path × (not exactly 2 odd) — No Euler path or circuit.
+
+**c)** Hamiltonian Path/Circuit:
+Path → visit each vertex once
+Circuit → return to start
+Ex: Hamiltonian path: A→B→D→F→G→E→C — visits all once
+Hamiltonian circuit: A→B→D→F→G→E→C→A — valid
+
+**d)** Complexity Difference:
+Euler → easy (just checking there degrees)
+Hamiltonian → Hard (NP Problem)
+
+---
